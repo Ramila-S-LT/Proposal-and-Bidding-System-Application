@@ -22,3 +22,14 @@ service customerapi {
     entity ProposalItems as projection on db.ProposalItems;
 }
 
+service managerapi {
+    entity Proposals as projection on db.Proposals;
+    entity ProposalItems as projection on db.ProposalItems;
+    entity ManagerApprovals as projection on db.ManagerApprovals;
+}
+
+service salesapi {
+    entity RentalContracts as projection on db.RentalContracts;
+    entity RentalAllocations as projection on db.RentalAllocations;
+}
+
