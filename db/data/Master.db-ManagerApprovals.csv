@@ -1,0 +1,11 @@
+ID,reviewDate,decision,comments,approvedAmount,proposal_ID,createdAt,createdBy,modifiedAt,modifiedBy
+850e8400-e29b-41d4-a716-446655446001,2026-02-10,Pending,Proposal received and waiting for manager review,0.00,650e8400-e29b-41d4-a716-446655449001,2026-02-10T10:20:00Z,admin,2026-02-10T10:20:00Z,admin
+850e8400-e29b-41d4-a716-446655446002,2026-02-13,Approved,Approved for road development and material grading activities,400000.00,650e8400-e29b-41d4-a716-446655449002,2026-02-13T09:20:00Z,manager,2026-02-13T09:20:00Z,manager
+850e8400-e29b-41d4-a716-446655446003,2026-02-15,Pending,Proposal is under review by the operations and finance team,0.00,650e8400-e29b-41d4-a716-446655449003,2026-02-15T14:30:00Z,admin,2026-02-15T14:30:00Z,admin
+850e8400-e29b-41d4-a716-446655446004,2026-02-18,Rejected,Negotiated amount is below the acceptable rental price,0.00,650e8400-e29b-41d4-a716-446655449004,2026-02-18T13:10:00Z,manager,2026-02-18T13:10:00Z,manager
+850e8400-e29b-41d4-a716-446655446005,2026-02-21,Approved,Approved for large scale infrastructure development project,825000.00,650e8400-e29b-41d4-a716-446655449005,2026-02-21T11:00:00Z,manager,2026-02-21T11:00:00Z,manager
+850e8400-e29b-41d4-a716-446655446006,2026-02-22,Pending,Proposal submitted and awaiting management review,0.00,650e8400-e29b-41d4-a716-446655449006,2026-02-22T12:10:00Z,admin,2026-02-22T12:10:00Z,admin
+850e8400-e29b-41d4-a716-446655446007,2026-02-26,Approved,Approved for quarry operations and loading activities,535000.00,650e8400-e29b-41d4-a716-446655449007,2026-02-26T10:15:00Z,manager,2026-02-26T10:15:00Z,manager
+850e8400-e29b-41d4-a716-446655446008,2026-02-28,Pending,Proposal under detailed review for equipment and attachment requirement,0.00,650e8400-e29b-41d4-a716-446655449008,2026-02-28T09:40:00Z,admin,2026-02-28T09:40:00Z,admin
+850e8400-e29b-41d4-a716-446655446009,2026-03-03,Approved,Approved for quarry road maintenance and mining site development,460000.00,650e8400-e29b-41d4-a716-446655449009,2026-03-03T09:45:00Z,manager,2026-03-03T09:45:00Z,manager
+850e8400-e29b-41d4-a716-446655446010,2026-03-05,Pending,Proposal received and waiting for manager approval,0.00,650e8400-e29b-41d4-a716-446655449010,2026-03-05T13:40:00Z,admin,2026-03-05T13:40:00Z,admin

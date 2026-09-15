@@ -1,0 +1,21 @@
+ID,Part_Number,part_Name,Description,Category,available_Quantity,Unit_price
+550e8400-e29b-41d4-a716-446655444001,CAT-HF-001,Hydraulic Oil Filter,Hydraulic filtration component for compatible Cat hydraulic systems,Filter,145,2850
+550e8400-e29b-41d4-a716-446655444002,CAT-UHE-002,UHE Air Filter,Ultra high efficiency air filter designed to reduce dust and protect engine components,Filter,96,4250
+550e8400-e29b-41d4-a716-446655444003,CAT-EF-003,Engine Oil Filter,Engine oil filtration component used for routine engine maintenance,Filter,180,1950
+550e8400-e29b-41d4-a716-446655444004,CAT-FL-004,Liquid Filter,High performance liquid filtration component for Cat equipment,Filter,120,2650
+550e8400-e29b-41d4-a716-446655444005,CAT-HS-005,Hydraulic Hose,High pressure hydraulic hose for hydraulic fluid transfer,Hose and Coupling,75,6850
+550e8400-e29b-41d4-a716-446655444006,CAT-HC-006,Hydraulic Coupling,Hydraulic coupling used to connect compatible hydraulic hose assemblies,Hose and Coupling,110,3250
+550e8400-e29b-41d4-a716-446655444007,CAT-HP-007,Hydraulic Pump,Hydraulic pump component for compatible Cat hydraulic systems,Pump and Motor,18,185000
+550e8400-e29b-41d4-a716-446655444008,CAT-HM-008,Hydraulic Motor,Hydraulic motor component used in compatible machine hydraulic systems,Pump and Motor,14,142000
+550e8400-e29b-41d4-a716-446655444009,CAT-CR-009,Cylinder Rod,Replacement rod for compatible hydraulic cylinder assemblies,Cylinder and Rod,32,38500
+550e8400-e29b-41d4-a716-446655444010,CAT-CS-010,Cylinder Seal Kit,Seal kit designed for maintenance of hydraulic cylinders,Cylinder and Rod,48,12750
+550e8400-e29b-41d4-a716-446655444011,CAT-DO-011,Cat DEO-ULS Engine Oil,Engine oil for Cat diesel engines providing protection against deposits wear and oxidation,Lubricant,420,920
+550e8400-e29b-41d4-a716-446655444012,CAT-HO-012,Cat Hydraulic Oil,Hydraulic oil for hydraulic system lubrication and contamination control,Lubricant,310,1180
+550e8400-e29b-41d4-a716-446655444013,CAT-TD-013,Transmission and Drivetrain Oil,Oil developed for compatible transmission and drivetrain components,Drivetrain,260,1350
+550e8400-e29b-41d4-a716-446655444014,CAT-TR-014,Track Roller,Undercarriage roller component for tracked Cat machines,Undercarriage,24,28500
+550e8400-e29b-41d4-a716-446655444015,CAT-CR-015,Carrier Roller,Undercarriage carrier roller for tracked equipment,Undercarriage,20,22800
+550e8400-e29b-41d4-a716-446655444016,CAT-TS-016,Track Shoe,Track shoe component for tracked Cat equipment,Undercarriage,160,9500
+550e8400-e29b-41d4-a716-446655444017,CAT-BT-017,Bucket Tooth,Ground engaging replacement tooth for compatible excavator buckets,Ground Engaging Tools,210,2450
+550e8400-e29b-41d4-a716-446655444018,CAT-LS-018,Lip Shroud,Ground engaging wear component used to protect bucket lip areas,Ground Engaging Tools,95,5850
+550e8400-e29b-41d4-a716-446655444019,CAT-WS-019,Wing Shroud,Ground engaging protective component for bucket side areas,Ground Engaging Tools,82,6450
+550e8400-e29b-41d4-a716-446655444020,CAT-GB-020,Grader Blade,Replaceable cutting edge component for compatible motor grader applications,Ground Engaging Tools,36,22500
