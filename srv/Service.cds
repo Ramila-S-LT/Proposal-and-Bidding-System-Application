@@ -2,6 +2,7 @@ namespace proposal.srv;
 
 using {Master.db as db} from '../db/Schema';
 
+
 service Masterapi {
     entity Product as projection on db.Product;
     entity Rental_Physical_Equipment as projection on db.Rental_Physical_Equipment;
@@ -16,11 +17,30 @@ service Masterapi {
    
 }
 
+
+@impl : 'srv/Customer_Registration.js'
 service customerapi {
     entity Customers as projection on db.Customers;
     entity Proposals as projection on db.Proposals;
     entity ProposalItems as projection on db.ProposalItems;
+
+    action Register(
+        companyName : String,
+        companyType : String,
+        contactPerson : String,
+        customerEmail : String,
+        phone : String,
+        address : String,
+        city : String,
+        state : String,
+        country : String,
+        username : String,
+        password : String
+    ) returns array of String;
+
+    function login(username : String, password : String) returns array of String;
 }
+
 
 service managerapi {
     entity Proposals as projection on db.Proposals;

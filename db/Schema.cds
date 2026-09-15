@@ -120,19 +120,24 @@ entity Customers : cuid, managed {
  
     customerCode     : String;
     companyName      : String;
-    companyType      : String;
+    companyType      : String enum {
+                        Construction;
+                        Mining
+                    };
  
     contactPerson    : String;
     customerEmail    : String;
-    phone            : String;
+    phone            : String @assert.format : '^[6-9][0-9]{9}$';
  
     address          : String;
     city             : String;
     state            : String;
     country          : String;
  
-    regDate          : Date;
+    regDate          : Date default $now;
     status           : String default 'Pending';
+    username         : String;
+    password         : String;
  
     proposals        : Association to many Proposals
                        on proposals.customer = $self;
