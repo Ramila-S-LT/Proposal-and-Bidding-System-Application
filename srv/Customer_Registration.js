@@ -12,7 +12,11 @@ module.exports = cds.service.impl(async function () {
 
         const {companyName, companyType, contactPerson, customerEmail, phone, address, city, state, country, username, password} = req.data;
 
-        console.log(companyName, companyType, contactPerson, customerEmail, phone, address, city, state, country, username, password);
+        //console.log(companyName, companyType, contactPerson, customerEmail, phone, address, city, state, country, username, password);
+
+        if(!companyName || !companyType || !contactPerson || !customerEmail || !phone || !address || !city || !state || !country || !username || !password ) {
+            req.error('Some Fields are missing');
+        }
 
         let prefix = "";
 
@@ -65,9 +69,16 @@ module.exports = cds.service.impl(async function () {
 
         const userExists = await SELECT.one.from(Customers).where({username : username, password : password});
 
-        if(!userExists) {
+        const dbUserName = userExists.username;
+        const dbPassword = userExists.password;
+
+        if(username !== dbUserName && password !== dbPassword){
             req.reject('Invalid Username or Password');
         }
+
+        // if(!userExists) {
+        //     req.reject('Invalid Username or Password');
+        // }
 
     })
 
@@ -75,11 +86,20 @@ module.exports = cds.service.impl(async function () {
         
         const {username, password} = req.data;
 
-        const userExists = await SELECT.one.from(Customers).columns('ID').where({username : username, password : password});
+        const userExists = await SELECT.one.from(Customers).where({username : username, password : password});
+        console.log("users : ", userExists);
+        
+        const dbUserName = userExists.username;
+        const dbPassword = userExists.password;
+        console.log("Username : ", dbUserName, dbPassword);
+        
 
-        const getPropoaal = await SELECT.from(Proposals).where({customer_ID : userExists.ID});
+        if(username === dbUserName && password === dbPassword){
+            const getProposal = await SELECT.from(Proposals).where({customer_ID : userExists.ID});
+            return getProposal;
+        }
 
-        return getPropoaal;
+        
 
     })
 
