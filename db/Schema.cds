@@ -113,7 +113,7 @@ entity Prod_Operator {
     key Prod_ref : Association to Product;
     key Machine_ref : Association to Machine_Operator;
 }
- 
+
 
 //Transactional Data
 
@@ -203,8 +203,7 @@ entity ProposalItems : cuid {
     product : Association to Product;
 
 }
- 
- 
+
 entity ManagerApprovals : cuid, managed {
  
     reviewDate       : Date;
@@ -219,7 +218,7 @@ entity ManagerApprovals : cuid, managed {
     proposal         : Association to Proposals;
 }
  
- 
+
 entity RentalContracts : cuid, managed {
  
     contractNumber    : String;

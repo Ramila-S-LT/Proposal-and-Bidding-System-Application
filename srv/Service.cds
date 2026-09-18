@@ -47,6 +47,12 @@ service managerapi {
     entity Proposals as projection on db.Proposals;
     entity ProposalItems as projection on db.ProposalItems;
     entity ManagerApprovals as projection on db.ManagerApprovals;
+
+    function availability(ID:UUID) returns array of String;
+
+    action approve(ID:UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
+    action reject(ID:UUID) returns array of String;
+    
 }
 
 
