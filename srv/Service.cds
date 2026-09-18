@@ -49,9 +49,20 @@ service managerapi {
     entity ManagerApprovals as projection on db.ManagerApprovals;
 }
 
-
+@impl : 'srv/equipment_allocation.js'
 service salesapi {
+    entity Proposals as projection on db.Proposals;
     entity RentalContracts as projection on db.RentalContracts;
     entity RentalAllocations as projection on db.RentalAllocations;
+
+  
+    action allocationEquipment(
+        proposal_ID : UUID,
+        customer_ID : UUID,
+        equipment_ID : UUID,
+        quantity    : Integer,
+        startDate   : Date,
+        endDate     : Date
+    ) returns String;
 }
 
