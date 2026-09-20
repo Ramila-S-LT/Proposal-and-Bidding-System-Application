@@ -44,9 +44,18 @@ service customerapi {
 
 @impl : 'srv/Manager_Approval.js'
 service managerapi {
-    entity Proposals as projection on db.Proposals;
+    entity Proposals as projection on db.Proposals {
+        *,
+        virtual availabilityStatus : String
+    };
     entity ProposalItems as projection on db.ProposalItems;
     entity ManagerApprovals as projection on db.ManagerApprovals;
+
+    function availabilityDetails(ID:UUID) returns array of String;
+
+    action approve(ID:UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
+    action rejectProposal(ID:UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
+    action underReview(ID : UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
 }
 
 @impl : 'srv/equipment_allocation.js'
