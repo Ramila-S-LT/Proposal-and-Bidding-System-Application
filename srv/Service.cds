@@ -58,9 +58,20 @@ service managerapi {
     action underReview(ID : UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
 }
 
-
+@impl : 'srv/equipment_allocation.js'
 service salesapi {
+    entity Proposals as projection on db.Proposals;
     entity RentalContracts as projection on db.RentalContracts;
     entity RentalAllocations as projection on db.RentalAllocations;
+
+  
+    action allocationEquipment(
+        proposal_ID : UUID,
+        customer_ID : UUID,
+        equipment_ID : UUID,
+        quantity    : Integer,
+        startDate   : Date,
+        endDate     : Date
+    ) returns String;
 }
 
