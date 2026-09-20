@@ -7,8 +7,7 @@ module.exports = cds.service.impl(async function() {
     // })
 
 
-    this.on('availability', async (req, res) => {
-        const {ID} = req.data;
+    async function equipmentAvailability(ID, res = []){
 
         const proposalData = await SELECT.from(Proposals).where({ID : ID});
         console.log("ProposalData :", proposalData);
@@ -16,13 +15,13 @@ module.exports = cds.service.impl(async function() {
         const proposalItemData = await SELECT.from(ProposalItems).where({proposals_ID : ID});
         console.log("Proposal Items : ", proposalItemData);
         
-        
-        res = [];
 
         for(let data of proposalItemData){
             //console.log("Product ID  : ", data.product_ID); 
 
             quantity = 0;
+            console.log("Datas Testing : ", data);
+            
             const product_Data = await SELECT.from('Rental_Physical_Equipment').columns('ID','equipment_Name', 'status', 'product_ref_ID').where({product_ref_ID : data.product_ID});
             console.log("Product Status 1: ", product_Data);
 
@@ -62,9 +61,8 @@ module.exports = cds.service.impl(async function() {
                 console.log("quantity : ", quantity);
                 
             const productName = await SELECT.one.from('Product').columns('product_Name').where({ID : data.product_ID});
+            console.log("Prudct_Name : ....................", productName);
             
-
-
                 let Status = ""
                if(quantity >= data.quantity){
                     Status = "Available"
@@ -86,33 +84,58 @@ module.exports = cds.service.impl(async function() {
             
         return res;
 
+    }
+
+    this.after('READ', Proposals, async (data, res) => {
+        //const data = equipmentAvailability(ID);
+        //console.log(data);
+
+
+        //The read handler waits until all the proposal data is finshes it works/promises. and then availabilitystatus is added to the response and then sends the result to the browser. 
+        await Promise.all(
+            data.map(async (responseData) => {
+                console.log("Response Data : ", responseData);
+                res = [];
+                avail = [];
+                const result =  await equipmentAvailability(responseData.ID, res);
+                console.log("Results ::::::", result);
+
+                for(let res of result){
+                    if(res.Equipment_Availability !== "Available"){
+                        avail.push(false);
+                    } else {
+                        avail.push(true);
+                    }
+                }
+
+                console.log("AVAIL :", avail);
+               
+            if(responseData.proposalStatus === "Submitted" || responseData.proposalStatus === "Under Review" ){    
+                responseData.availabilityStatus =  await avail.every((data) => data === true) ? "Available" : "Not Available";
+            }
+
+            avail.length = 0; 
+    
+            console.log("Final Data : ", responseData);
+            
+            }))
+        
+    })
+
+
+    this.on('availabilityDetails', async (req, res) => {
+        const {ID} = req.data;
+
+        const dataRes = await equipmentAvailability(ID);
+        console.log("Data Result : ", dataRes);
+        
     })
 
     this.on('approve', async (req, res) => {
 
         const {ID, decision, comments, approvedAmount} = req.data;
 
-        const result = await this.send({
-            event : 'availability',
-            data : {
-                ID: ID
-            }
-        });
-        console.log("Result : ", result);
-
-        avail = true
-        for(let res of result){
-            if(res.Equipment_Availability !== "Available"){
-                avail = false;
-                break;
-            }
-        }
-
-        console.log("Avail : ", avail);
-        
-        if(avail){
-            
-            const ManagerData = await INSERT.into(ManagerApprovals).entries({
+        const ManagerData = await INSERT.into(ManagerApprovals).entries({
                 reviewDate : new Date(),
                 decision : decision,
                 comments : comments,
@@ -122,31 +145,72 @@ module.exports = cds.service.impl(async function() {
             
             if(ManagerData) {
                 const statusApprove = await UPDATE(Proposals).set({proposalStatus : 'Approved'}).where({ID : ID});
+                
+                return statusApprove;
             }
-        } else {
-            return "No Required stock"
-        }
 
-        return statusApprove;
+        // const result = await this.send({
+        //     event : 'availability',
+        //     data : {
+        //         ID: ID
+        //     }
+        // });
+        // console.log("Result : ", result);
 
+        // avail = true
+        // for(let res of result){
+        //     if(res.Equipment_Availability !== "Available"){
+        //         avail = false;
+        //         break;
+        //     }
+        // }
+
+        // console.log("Avail : ", avail);
+        
+        // if(avail){
+            
+            
     });
-    
 
-    this.on('reject', async (req,res) => {
-        
-        const {ID} = req.data;
+    this.on('rejectProposal', async (req, res) => {
+        const {ID, decision, comments, approvedAmount} = req.data;
 
-        const result = await this.send({
-            event : 'availability',
-            data : {ID : ID}
-        })
-        
-        console.log("Result : ", result);
-
-        avail = false;
-        
+        const ManagerData = await INSERT.into(ManagerApprovals).entries({
+                reviewDate : new Date(),
+                decision : decision,
+                comments : comments,
+                approvedAmount : approvedAmount,
+                proposal_ID : ID
+            })
+            
+            if(ManagerData) {
+                const statusApprove = await UPDATE(Proposals).set({proposalStatus : 'Approved'}).where({ID : ID});
+                
+                return statusApprove;
+            }
 
     })
+    
+    this.on('underReview', async (req, res) => {
+        const {ID, decision, comments, approvedAmount} = req.data;
+
+        const ManagerData = await INSERT.into(ManagerApprovals).entries({
+                reviewDate : new Date(),
+                decision : decision,
+                comments : comments,
+                approvedAmount : approvedAmount,
+                proposal_ID : ID
+            })
+            
+            if(ManagerData) {
+                const statusApprove = await UPDATE(Proposals).set({proposalStatus : 'Approved'}).where({ID : ID});
+                
+                return statusApprove;
+            }
+
+    })
+
+   
 
 })
 
