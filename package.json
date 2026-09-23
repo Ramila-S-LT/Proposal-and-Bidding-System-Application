@@ -2,14 +2,17 @@
   "name": "Proposal-Rental-System",
   "version": "1.0.0",
   "dependencies": {
+    "@cap-js-community/odata-v2-adapter": "^1.16.1",
     "@cap-js/hana": "^3",
     "@sap/cds": "^10",
     "@sap/xssec": "^4"
+
   },
   "devDependencies": {
     "@cap-js/sqlite": "^3",
     "@sap/cds-dk": "^10",
     "cds-plugin-ui5": "^0.17.0"
+
   },
   "scripts": {
     "start": "cds-serve",
@@ -18,8 +21,11 @@
   "private": true,
   "cds": {
     "requires": {
-      "auth": {
-        "kind": "mocked"
+      "[production]": {
+        "auth": "dummy",
+        "db": {
+          "kind": "hana"
+        }
       }
     }
   }

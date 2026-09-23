@@ -155,7 +155,7 @@ entity Proposals : cuid, managed {
  
     proposalType     : String;
     // RENTAL, SALES
- 
+
     proposalStatus   : String default 'Pending';
     // DRAFT, SUBMITTED, APPROVED, REJECTED
  
@@ -203,6 +203,12 @@ entity ProposalItems : cuid {
     product : Association to Product;
 
 }
+
+// entity EquipmentBookings :  cuid, managed {
+//     equipmentName : String;
+    
+// }
+
 
 entity ManagerApprovals : cuid, managed {
  

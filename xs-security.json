@@ -1,5 +1,28 @@
 {
-  "scopes": [],
+  "xsappname": "proposal-rental-sys",
+  "tenant-mode": "dedicated",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.Users",
+      "description": "Users"
+    }
+  ],
   "attributes": [],
-  "role-templates": []
+  "role-templates": [
+    {
+      "name": "Users",
+      "description": "generated",
+      "scope-references": [
+        "$XSAPPNAME.Users"
+      ],
+      "attribute-references": []
+    }
+  ],
+  "oauth2-configuration": {
+    "redirect-uris": [
+      "http://localhost:5000/**",
+      "https://*.cfapps.us10.hana.ondemand.com/**",
+      "https://*.applicationstudio.cloud.sap/**"
+    ]
+  }
 }

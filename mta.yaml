@@ -24,6 +24,7 @@ modules:
         properties:
           srv-url: ${default-url}
     requires:
+      - name: Proposal-Rental-System-auth
       - name: Proposal-Rental-System-db
 
   - name: Proposal-Rental-System-db-deployer
@@ -33,8 +34,50 @@ modules:
       buildpack: nodejs_buildpack
     requires:
       - name: Proposal-Rental-System-db
+  - name: Proposal-Rental-System
+    type: approuter.nodejs
+    path: app/router
+    parameters:
+      keep-existing-routes: true
+      disk-quota: 256M
+      memory: 256M
+    requires:
+      - name: srv-api
+        group: destinations
+        properties:
+          name: srv-api # must be used in xs-app.json as well
+          url: ~{srv-url}
+          forwardAuthToken: true
+      - name: Proposal-Rental-System-auth
+    provides:
+      - name: app-api
+        properties:
+          app-protocol: ${protocol}
+          app-uri: ${default-uri}
 
 resources:
+  - name: Proposal-Rental-System-auth
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+      config:
+        xsappname: Proposal-Rental-System-${org}-${space}
+        tenant-mode: dedicated
+        oauth2-configuration:
+          credential-types:
+            - "binding-secret"
+            - "x509"
+          redirect-uris:
+            - https://*~{app-api/app-uri}/**
+        role-collections:
+          - name: 'Users (Proposal-Rental-System ${org}-${space})'
+            description: 'generated'
+            role-template-references:
+              - '$XSAPPNAME.Users'
+    requires:
+      - name: app-api
   - name: Proposal-Rental-System-db
     type: com.sap.xs.hdi-container
     parameters:

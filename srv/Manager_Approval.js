@@ -6,6 +6,9 @@ module.exports = cds.service.impl(async function() {
     //     const {ID} = req.data;
     // })
 
+    //console.log(Object.keys(cds.services));
+    //const masterData = await cds.connect.to('proposal.srv.Masterapi');
+
 
     async function equipmentAvailability(ID, res = []){
 
@@ -110,7 +113,7 @@ module.exports = cds.service.impl(async function() {
 
                 console.log("AVAIL :", avail);
                
-            if(responseData.proposalStatus === "Submitted" || responseData.proposalStatus === "Under Review" ){    
+            if(responseData.proposalStatus === "Submitted" || responseData.proposalStatus === "Under Review" || responseData.proposalStatus === "Pending"){    
                 responseData.availabilityStatus =  await avail.every((data) => data === true) ? "Available" : "Not Available";
             }
 
@@ -128,6 +131,8 @@ module.exports = cds.service.impl(async function() {
 
         const dataRes = await equipmentAvailability(ID);
         console.log("Data Result : ", dataRes);
+
+        return dataRes;
         
     })
 
@@ -184,7 +189,7 @@ module.exports = cds.service.impl(async function() {
             })
             
             if(ManagerData) {
-                const statusApprove = await UPDATE(Proposals).set({proposalStatus : 'Approved'}).where({ID : ID});
+                const statusApprove = await UPDATE(Proposals).set({proposalStatus : 'Rejected'}).where({ID : ID});
                 
                 return statusApprove;
             }
@@ -203,7 +208,7 @@ module.exports = cds.service.impl(async function() {
             })
             
             if(ManagerData) {
-                const statusApprove = await UPDATE(Proposals).set({proposalStatus : 'Approved'}).where({ID : ID});
+                const statusApprove = await UPDATE(Proposals).set({proposalStatus : 'Under Review'}).where({ID : ID});
                 
                 return statusApprove;
             }
