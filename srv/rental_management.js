@@ -10,9 +10,7 @@ module.exports = cds.service.impl(function () {
     } = this.entities;
 
 
-    // =========================================================
-    // 1. CREATE RENTAL CONTRACT
-    // =========================================================
+    // Create rental contract
 
     this.on('createRentalContract', async (req) => {
 
@@ -27,9 +25,7 @@ module.exports = cds.service.impl(function () {
         } = req.data;
 
 
-        // -----------------------------------------------------
-        // Basic validation
-        // -----------------------------------------------------
+        // This is for Basic validation
 
         if (!proposal_ID) {
             return req.error(400, 'Proposal ID is required');
@@ -56,9 +52,7 @@ module.exports = cds.service.impl(function () {
         }
 
 
-        // -----------------------------------------------------
         // Validate dates
-        // -----------------------------------------------------
 
         if (new Date(startDate) > new Date(endDate)) {
             return req.error(
@@ -68,9 +62,7 @@ module.exports = cds.service.impl(function () {
         }
 
 
-        // -----------------------------------------------------
-        // Check proposal
-        // -----------------------------------------------------
+        // check proposal
 
         const proposal = await SELECT.one
             .from(Proposals)
@@ -83,9 +75,7 @@ module.exports = cds.service.impl(function () {
         }
 
 
-        // -----------------------------------------------------
         // Only approved proposal
-        // -----------------------------------------------------
 
         if (proposal.proposalStatus !== 'Approved') {
             return req.error(
@@ -95,9 +85,7 @@ module.exports = cds.service.impl(function () {
         }
 
 
-        // -----------------------------------------------------
         // Check duplicate contract number
-        // -----------------------------------------------------
 
         const existingContract = await SELECT.one
             .from(RentalContracts)
@@ -113,9 +101,7 @@ module.exports = cds.service.impl(function () {
         }
 
 
-        // -----------------------------------------------------
         // Check proposal already has contract
-        // -----------------------------------------------------
 
         const existingProposalContract = await SELECT.one
             .from(RentalContracts)
@@ -131,9 +117,7 @@ module.exports = cds.service.impl(function () {
         }
 
 
-        // -----------------------------------------------------
         // Create rental contract
-        // -----------------------------------------------------
 
         await INSERT.into(RentalContracts).entries({
 
