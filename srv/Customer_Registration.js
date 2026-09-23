@@ -28,14 +28,14 @@ module.exports = cds.service.impl(async function () {
         const customerDetails = await SELECT.one.from(Customers).columns('customerCode').where({companyType}).orderBy('customerCode desc');
 
         let newNum = 1;
-
+        //CUST-0007
         if(customerDetails) {
-            const number = parseInt(customerDetails.customerCode.split('-')[1]);
-            newNum = number + 1;
+            const number = parseInt(customerDetails.customerCode.split('-')[1]); //0007
+            newNum = number + 1; //0008
         }
 
-        req.data.customerCode = `${prefix}-${String(newNum).padStart(4, '0')}`;
-        console.log(req.data.customerCode);
+        req.data.customerCode = `${prefix}-${String(newNum).padStart(4, '0')}`; //0008
+        console.log(req.data.customerCode); //CUST-0008
         
     })
 
@@ -122,7 +122,7 @@ module.exports = cds.service.impl(async function () {
 
             const diff = new Date(data.endDate) - new Date(data.startDate);
             
-            const days = (diff)/(1000 * 60 * 60 * 24) + 1;
+            const days = (diff)/(1000 * 60 * 60 * 24) + 1; //10
             
             
             const estimateAmount = (data.quantity * productData.basePrice) * days ;
@@ -143,7 +143,7 @@ module.exports = cds.service.impl(async function () {
         console.log("customer Data : ", customerData);
         
 
-        const currDate = new Date().toISOString().split("T")[0];
+        const currDate = new Date().toISOString().split("T")[0]; //2026-09-25T03:09:13
         // console.log("Curr Date : ", currDate);
         
         // const date = currDate.split();
