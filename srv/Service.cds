@@ -20,10 +20,32 @@ service Masterapi {
 
 @impl : 'srv/Customer_Registration.js'
 service customerapi {
+
+    @(restrict : [
+        {
+            grant : ['READ', 'CREATE'],
+            to : ['Users']
+        }
+    ])
     entity Customers as projection on db.Customers;
+
+    @(restrict : [{
+        grant : ['READ', 'CREATE', 'UPDATE'],
+        to : ['Users']
+    }])
     entity Proposals as projection on db.Proposals;
+
+    @(restrict : [{
+        grant : ['READ', 'CREATE', 'UPDATE'],
+        to : ['Users']
+    }])    
     entity ProposalItems as projection on db.ProposalItems;
 
+
+    @(restrict : [{
+        grant : ['EXECUTE'],
+        to:['Users']
+    }])
     action Register(
         companyName : String,
         companyType : String,
@@ -38,6 +60,11 @@ service customerapi {
         password : String
     ) returns array of String;
 
+
+    @(restrict : [{
+        grant : ['EXECUTE'],
+        to:['Users']
+    }])
     function login(username : String, password : String) returns array of String;
 }
 
