@@ -143,27 +143,18 @@ module.exports = cds.service.impl(function () {
     });
 
 
-    // =========================================================
-    // 2. COMPLETE RENTAL CONTRACT
-    // =========================================================
+    //  COMPLETE RENTAL CONTRACT
 
     this.on('completeRentalContract', async (req) => {
 
         const { contract_ID } = req.data;
-
-
-        // -----------------------------------------------------
-        // Basic validation
-        // -----------------------------------------------------
 
         if (!contract_ID) {
             return req.error(400, 'Contract ID is required');
         }
 
 
-        // -----------------------------------------------------
         // Check contract
-        // -----------------------------------------------------
 
         const contract = await SELECT.one
             .from(RentalContracts)
@@ -179,9 +170,7 @@ module.exports = cds.service.impl(function () {
         }
 
 
-        // -----------------------------------------------------
-        // Check contract status
-        // -----------------------------------------------------
+        // Check contract details
 
         if (contract.contractStatus === 'Completed') {
             return req.error(
@@ -191,9 +180,7 @@ module.exports = cds.service.impl(function () {
         }
 
 
-        // -----------------------------------------------------
         // Get allocated equipment
-        // -----------------------------------------------------
 
         const allocations = await SELECT.from(RentalAllocations)
             .where({
@@ -208,9 +195,7 @@ module.exports = cds.service.impl(function () {
         }
 
 
-        // -----------------------------------------------------
         // Release every allocated equipment
-        // -----------------------------------------------------
 
         for (const allocation of allocations) {
 
@@ -223,9 +208,7 @@ module.exports = cds.service.impl(function () {
                 });
 
 
-            // -------------------------------------------------
             // Keep allocation record for history
-            // -------------------------------------------------
 
             await UPDATE(RentalAllocations)
                 .set({
@@ -237,9 +220,7 @@ module.exports = cds.service.impl(function () {
         }
 
 
-        // -----------------------------------------------------
         // Complete rental contract
-        // -----------------------------------------------------
 
         await UPDATE(RentalContracts)
             .set({
@@ -250,9 +231,7 @@ module.exports = cds.service.impl(function () {
             });
 
 
-        // -----------------------------------------------------
         // Notification placeholder
-        // -----------------------------------------------------
 
         console.log(
             `Notification: Rental contract ${contract.contractNumber} completed`
