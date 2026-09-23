@@ -6,15 +6,13 @@
     "@cap-js/hana": "^3",
     "@sap/cds": "^10",
     "@sap/xssec": "^4"
-    "@sap/cds": "^10",
-    "@sap/xssec": "^4"
+
   },
   "devDependencies": {
     "@cap-js/sqlite": "^3",
     "@sap/cds-dk": "^10",
     "cds-plugin-ui5": "^0.17.0"
-    "@cap-js/sqlite": "^3",
-    "@sap/cds-dk": "^10"
+
   },
   "scripts": {
     "start": "cds-serve",
@@ -28,14 +26,6 @@
         "db": {
           "kind": "hana"
         }
-      }
-    }
-  }
-  "private": true,
-  "cds": {
-    "requires": {
-      "auth": {
-        "kind": "mocked"
       }
     }
   }

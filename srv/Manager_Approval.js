@@ -113,7 +113,7 @@ module.exports = cds.service.impl(async function() {
 
                 console.log("AVAIL :", avail);
                
-            if(responseData.proposalStatus === "Submitted" || responseData.proposalStatus === "Under Review" ){    
+            if(responseData.proposalStatus === "Submitted" || responseData.proposalStatus === "Under Review" || responseData.proposalStatus === "Pending"){    
                 responseData.availabilityStatus =  await avail.every((data) => data === true) ? "Available" : "Not Available";
             }
 
