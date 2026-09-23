@@ -86,19 +86,62 @@ service managerapi {
 }
 
 @impl : 'srv/equipment_allocation.js'
+
 service salesapi {
+
     entity Proposals as projection on db.Proposals;
+
+    entity ProposalItems as projection on db.ProposalItems;
+
     entity RentalContracts as projection on db.RentalContracts;
+
     entity RentalAllocations as projection on db.RentalAllocations;
 
-  
-    action allocationEquipment(
-        proposal_ID : UUID,
-        customer_ID : UUID,
-        equipment_ID : UUID,
-        quantity    : Integer,
-        startDate   : Date,
-        endDate     : Date
-    ) returns String;
-}
+    entity Rental_Physical_Equipment
+        as projection on db.Rental_Physical_Equipment;
 
+
+    function getApprovedProposals()
+        returns many Proposals;
+
+    function getProposalItems(
+        proposal_ID : UUID
+    )
+        returns many ProposalItems;
+
+    function getAvailableEquipment()
+        returns many Rental_Physical_Equipment;
+
+    function getEquipmentHistory(
+    equipment_ID : UUID
+)
+    returns many RentalAllocations;
+
+
+    action createRentalContract(
+        proposal_ID       : UUID,
+        customer_ID       : UUID,
+        contractNumber    : String,
+        contractDate      : Date,
+        startDate         : Date,
+        endDate           : Date,
+        totalRentalAmount : Decimal
+    )
+        returns String;
+
+    action allocationEquipment(
+        proposal_ID       : UUID,
+        customer_ID       : UUID,
+        equipment_ID      : UUID,
+        quantity           : Integer,
+        startDate          : Date,
+        endDate            : Date,
+        rentalContract_ID  : UUID
+    )
+        returns String;
+
+    action completeRentalContract(
+        contract_ID : UUID
+    )
+        returns String;
+}
