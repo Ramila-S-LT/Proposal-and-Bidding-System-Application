@@ -1,22 +1,19 @@
-const cds = require('@sap/cds');
+const cds = require("@sap/cds");
 
 module.exports = cds.service.impl(function () {
 
     const {
-        Proposals,
         RentalContracts,
         RentalAllocations,
         Rental_Physical_Equipment
     } = this.entities;
 
 
-    // Create rental contract
-
-    this.on('createRentalContract', async (req) => {
+    // create rental contract
+    this.on("createRentalContract", async (req) => {
 
         const {
-            proposal_ID,
-            customer_ID,
+            allocation_ID,
             contractNumber,
             contractDate,
             startDate,
@@ -24,137 +21,133 @@ module.exports = cds.service.impl(function () {
             totalRentalAmount
         } = req.data;
 
-
-        // This is for Basic validation
-
-        if (!proposal_ID) {
-            return req.error(400, 'Proposal ID is required');
-        }
-
-        if (!customer_ID) {
-            return req.error(400, 'Customer ID is required');
+        if (!allocation_ID) {
+            return req.error(400, "Allocation ID is required");
         }
 
         if (!contractNumber) {
-            return req.error(400, 'Contract number is required');
+            return req.error(400, "Contract number is required");
         }
 
         if (!contractDate) {
-            return req.error(400, 'Contract date is required');
+            return req.error(400, "Contract date is required");
         }
 
-        if (!startDate) {
-            return req.error(400, 'Rental start date is required');
+        if (!startDate || !endDate) {
+            return req.error(400, "Rental start date and end date are required");
         }
-
-        if (!endDate) {
-            return req.error(400, 'Rental end date is required');
-        }
-
-
-        // Validate dates
 
         if (new Date(startDate) > new Date(endDate)) {
+            return req.error(400, "Start date cannot be greater than end date");
+        }
+
+
+        // Check allocation
+        const allocation = await SELECT.one
+            .from(RentalAllocations)
+            .where({ ID: allocation_ID });
+
+        if (!allocation) {
+            return req.error(404, "Rental allocation not found");
+        }
+
+
+        // Allocation should not already have a rental contract
+        if (allocation.rentalContract_ID) {
             return req.error(
                 400,
-                'Rental start date cannot be after end date'
+                "Rental contract already exists for this allocation"
             );
         }
 
 
-        // check proposal
-
-        const proposal = await SELECT.one
-            .from(Proposals)
-            .where({
-                ID: proposal_ID
-            });
-
-        if (!proposal) {
-            return req.error(404, 'Proposal not found');
-        }
-
-
-        // Only approved proposal
-
-        if (proposal.proposalStatus !== 'Approved') {
+        // Allocation must be allocated
+        if (allocation.allocationStatus !== "ALLOCATED") {
             return req.error(
                 400,
-                'Rental contract can be created only for approved proposals'
+                "Equipment must be allocated before creating the rental contract"
             );
         }
 
 
-        // Check duplicate contract number
-
+        // Check contract number
         const existingContract = await SELECT.one
             .from(RentalContracts)
-            .where({
-                contractNumber: contractNumber
-            });
+            .where({ contractNumber: contractNumber });
 
         if (existingContract) {
             return req.error(
                 400,
-                'Rental contract number already exists'
-            );
-        }
-
-
-        // Check proposal already has contract
-
-        const existingProposalContract = await SELECT.one
-            .from(RentalContracts)
-            .where({
-                proposal_ID: proposal_ID
-            });
-
-        if (existingProposalContract) {
-            return req.error(
-                400,
-                'Rental contract already exists for this proposal'
+                "Contract number already exists"
             );
         }
 
 
         // Create rental contract
-
-        await INSERT.into(RentalContracts).entries({
-
-            proposal_ID: proposal_ID,
-
-            customer_ID: customer_ID,
-
+        const contract = await INSERT.into(RentalContracts).entries({
             contractNumber: contractNumber,
-
             contractDate: contractDate,
-
             startDate: startDate,
-
             endDate: endDate,
-
-            totalRentalAmount: totalRentalAmount,
-
-            contractStatus: 'Active'
+            totalRentalAmount: totalRentalAmount || 0,
+            contractStatus: "ACTIVE"
         });
+
+
+        // Link allocation with rental contract
+        await UPDATE(RentalAllocations)
+            .set({
+                rentalContract_ID: contract[0].ID
+            })
+            .where({
+                ID: allocation_ID
+            });
 
 
         return `Rental contract ${contractNumber} created successfully`;
     });
 
 
-    //  COMPLETE RENTAL CONTRACT
+    // Get Active Rentals
+    this.on("getActiveRentals", async (req) => {
 
-    this.on('completeRentalContract', async (req) => {
+        const activeRentals = await SELECT
+            .from(RentalContracts)
+            .where({
+                contractStatus: "ACTIVE"
+            });
 
-        const { contract_ID } = req.data;
+        return activeRentals;
+    });
+
+
+    // Check Rental Period
+    this.on("checkRentalPeriod", async (req) => {
+
+        const {
+            contract_ID,
+            startDate,
+            endDate
+        } = req.data;
 
         if (!contract_ID) {
-            return req.error(400, 'Contract ID is required');
+            return req.error(400, "Contract ID is required");
         }
 
+        if (!startDate || !endDate) {
+            return req.error(
+                400,
+                "Start date and end date are required"
+            );
+        }
 
-        // Check contract
+        if (new Date(startDate) > new Date(endDate)) {
+            return req.error(
+                400,
+                "Start date cannot be greater than end date"
+            );
+        }
+
 
         const contract = await SELECT.one
             .from(RentalContracts)
@@ -165,54 +158,141 @@ module.exports = cds.service.impl(function () {
         if (!contract) {
             return req.error(
                 404,
-                'Rental contract not found'
+                "Rental contract not found"
             );
         }
 
 
-        // Check contract details
-
-        if (contract.contractStatus === 'Completed') {
+        if (contract.contractStatus !== "ACTIVE") {
             return req.error(
                 400,
-                'Rental contract is already completed'
+                "Rental contract is not active"
             );
         }
 
 
-        // Get allocated equipment
+        // Check overlapping active rentals
+        const existingRentals = await SELECT
+            .from(RentalContracts)
+            .where({
+                contractStatus: "ACTIVE"
+            });
 
-        const allocations = await SELECT.from(RentalAllocations)
+
+        for (const rental of existingRentals) {
+
+            if (rental.ID === contract_ID) {
+                continue;
+            }
+
+            const existingStart = new Date(rental.startDate);
+            const existingEnd = new Date(rental.endDate);
+
+            const requestedStart = new Date(startDate);
+            const requestedEnd = new Date(endDate);
+
+
+            if (
+                requestedStart <= existingEnd &&
+                requestedEnd >= existingStart
+            ) {
+                return req.error(
+                    400,
+                    "Rental period overlaps with an existing active rental"
+                );
+            }
+        }
+
+
+        return "Rental period is available";
+    });
+
+
+    // complete rental
+
+    this.on("completeRental", async (req) => {
+
+        const {
+            contract_ID
+        } = req.data;
+
+        if (!contract_ID) {
+            return req.error(
+                400,
+                "Contract ID is required"
+            );
+        }
+
+
+        const contract = await SELECT.one
+            .from(RentalContracts)
+            .where({
+                ID: contract_ID
+            });
+
+        if (!contract) {
+            return req.error(
+                404,
+                "Rental contract not found"
+            );
+        }
+
+
+        if (contract.contractStatus !== "ACTIVE") {
+            return req.error(
+                400,
+                "Rental contract is not active"
+            );
+        }
+
+
+        // Get allocations belonging to this contract
+        const allocations = await SELECT
+            .from(RentalAllocations)
             .where({
                 rentalContract_ID: contract_ID
             });
 
-        if (!allocations.length) {
+
+        if (allocations.length === 0) {
             return req.error(
                 400,
-                'No equipment is allocated to this rental contract'
+                "No equipment allocation found for this rental contract"
             );
         }
 
 
-        // Release every allocated equipment
-
+        // Release allocated equipment
         for (const allocation of allocations) {
 
-            await UPDATE(Rental_Physical_Equipment)
-                .set({
-                    status: 'AVAILABLE'
-                })
+            if (!allocation.equipment_ID) {
+                continue;
+            }
+
+
+            const equipment = await SELECT.one
+                .from(Rental_Physical_Equipment)
                 .where({
                     ID: allocation.equipment_ID
                 });
 
 
-            // Keep allocation record for history
+            if (equipment) {
 
+                await UPDATE(Rental_Physical_Equipment)
+                    .set({
+                        equipmentStatus: "AVAILABLE"
+                    })
+                    .where({
+                        ID: equipment.ID
+                    });
+            }
+
+
+            // Update allocation status
             await UPDATE(RentalAllocations)
                 .set({
-                    allocationStatus: 'RELEASED'
+                    allocationStatus: "RELEASED"
                 })
                 .where({
                     ID: allocation.ID
@@ -221,24 +301,35 @@ module.exports = cds.service.impl(function () {
 
 
         // Complete rental contract
-
         await UPDATE(RentalContracts)
             .set({
-                contractStatus: 'Completed'
+                contractStatus: "COMPLETED"
             })
             .where({
                 ID: contract_ID
             });
 
 
-        // Notification placeholder
-
-        console.log(
-            `Notification: Rental contract ${contract.contractNumber} completed`
-        );
+        return "Rental completed successfully";
+    });
 
 
-        return 'Rental contract completed and equipment released successfully';
+    // get rental history
+    
+    this.on("getRentalHistory", async (req) => {
+
+        const rentalHistory = await SELECT
+            .from(RentalContracts)
+            .where({
+                contractStatus: {
+                    in: [
+                        "COMPLETED",
+                        "CANCELLED"
+                    ]
+                }
+            });
+
+        return rentalHistory;
     });
 
 });

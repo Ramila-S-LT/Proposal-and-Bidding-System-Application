@@ -7,7 +7,7 @@ using { cuid, managed } from '@sap/cds/common';
 
 entity Product : cuid {
     product_Type : String;  //identifies what type of product it is ...like Road roaler,JCB
-    product_Code : String;  //unic busiess code used to identify the product
+    product_Code : String;  //unic busiess code used to identify the product  
     product_Name : String;  //name of the product
     product_Group: String;  //Group similer products ....like construction equipments
     Category     : String;  //more specific classification
@@ -22,7 +22,7 @@ entity Product : cuid {
     prod_attach_junc : Association to  many Prod_Attach on prod_attach_junc.product_ref = $self;
     prod_oper_junc : Association to  many Prod_Operator on prod_oper_junc.Prod_ref = $self;
  
-}
+} 
  
  
 entity Rental_Physical_Equipment : cuid {
@@ -227,7 +227,8 @@ entity ManagerApprovals : cuid, managed {
 
 entity RentalContracts : cuid, managed {
  
-    contractNumber    : String;
+    @assert.unique: {contractNumber:[contractNumber]} 
+    contractNumber    : String not null;
  
     contractDate      : Date;
  
@@ -257,7 +258,7 @@ entity RentalAllocations : cuid, managed {
     allocationStartDate  : Date;
     allocationEndDate    : Date;
  
-    allocationStatus     : String default 'Pending';
+    allocationStatus     : String;
     // PENDING, ALLOCATED, HANDED_OVER,
     // RELEASED, CANCELLED
 
@@ -271,4 +272,5 @@ entity RentalAllocations : cuid, managed {
 }
 
 
+      
       
