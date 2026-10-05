@@ -1,6 +1,7 @@
 namespace proposal.srv;
 
 using {Master.db as db} from '../db/Schema';
+using {viewObject as rco} from '../db/view';
 
 using {viewsObject as ViewData} from '../db/View';
 
@@ -122,16 +123,23 @@ service managerapi {
 @impl : 'srv/equipment_allocation.js'
 service salesapi {
 
+    @cds.redirection.target
     entity Proposals as projection on db.Proposals;
 
     entity ProposalItems as projection on db.ProposalItems;
 
+   @cds.redirection.target
     entity RentalContracts as projection on db.RentalContracts;
 
     entity RentalAllocations as projection on db.RentalAllocations;
 
-    entity Rental_Physical_Equipment
-        as projection on db.Rental_Physical_Equipment;
+    entity Rental_Physical_Equipment as projection on db.Rental_Physical_Equipment;
+
+
+    entity contracts as projection on rco.RentalContract;
+
+    entity ProposalCount as projection on rco.proposalCount;
+
 
 
     function getApprovedProposals()
@@ -142,11 +150,9 @@ service salesapi {
     )
         returns many ProposalItems;
 
-    function getAvailableEquipment()
-        returns many Rental_Physical_Equipment;
+    function getAvailableEquipment(proposal_ID:UUID) returns many Rental_Physical_Equipment;
 
-    function getEquipmentHistory(
-    equipment_ID : UUID
+    function getEquipmentHistory( equipment_ID : UUID
 )
     returns many RentalAllocations;
 
@@ -160,21 +166,26 @@ service salesapi {
         endDate           : Date,
         totalRentalAmount : Decimal
     )
-        returns String;
+        returns UUID;
 
     action allocationEquipment(
-        proposal_ID       : UUID,
-        customer_ID       : UUID,
-        equipment_ID      : UUID,
-        quantity           : Integer,
-        startDate          : Date,
-        endDate            : Date,
-        rentalContract_ID  : UUID
+        proposal_ID      : UUID,
+        equipment_ID     : UUID,
+        startDate        : Date,
+        endDate          : Date,
+        rentalContract_ID : UUID
     )
         returns String;
 
     action completeRentalContract(
         contract_ID : UUID
+    )
+        returns String;
+    
+    // notification
+     action sendCustomerNotification(
+        customer_ID : UUID,
+        message     : String
     )
         returns String;
 }
