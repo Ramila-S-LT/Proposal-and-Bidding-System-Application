@@ -1,6 +1,8 @@
+const UPDATE = require("@sap/cds/lib/ql/UPDATE");
+
 module.exports = cds.service.impl(async function() {
 
-    const {Proposals, ProposalItems, ManagerApprovals} = this.entities;
+    const {Proposals, ProposalItems, ManagerApprovals, Customers} = this.entities;
 
     // this.before('approve', async (req, res) => {
     //     const {ID} = req.data;
@@ -13,20 +15,20 @@ module.exports = cds.service.impl(async function() {
     async function equipmentAvailability(ID, res = []){
 
         const proposalData = await SELECT.from(Proposals).where({ID : ID});
-        console.log("ProposalData :", proposalData);
+        // console.log("ProposalData :", proposalData);
 
         const proposalItemData = await SELECT.from(ProposalItems).where({proposals_ID : ID});
-        console.log("Proposal Items : ", proposalItemData);
+        // console.log("Proposal Items : ", proposalItemData);
         
 
         for(let data of proposalItemData){
             //console.log("Product ID  : ", data.product_ID); 
 
             quantity = 0;
-            console.log("Datas Testing : ", data);
+            // console.log("Datas Testing : ", data);
             
             const product_Data = await SELECT.from('Rental_Physical_Equipment').columns('ID','equipment_Name', 'status', 'product_ref_ID').where({product_ref_ID : data.product_ID});
-            console.log("Product Status 1: ", product_Data);
+            // console.log("Product Status 1: ", product_Data);
 
                 for (let prodData of product_Data) {
                     
@@ -35,21 +37,21 @@ module.exports = cds.service.impl(async function() {
                         console.log("Rental Allocations : ", rentalAllocations);
                         
                         if(rentalAllocations.length >= 1){   
-                            console.log("Resquested Start Date : ", data.startDate);
-                            console.log("Requested End Date : ", data.endDate);
+                            // console.log("Resquested Start Date : ", data.startDate);
+                            // console.log("Requested End Date : ", data.endDate);
 
-                            console.log("Rental Start Date : ", rentalAllocations[0].allocationStartDate);
-                            console.log("Rental End Date : ", rentalAllocations[0].allocationEndDate);
+                            // console.log("Rental Start Date : ", rentalAllocations[0].allocationStartDate);
+                            // console.log("Rental End Date : ", rentalAllocations[0].allocationEndDate);
                             
 
-                            console.log(`Overlap 1 : ${data.startDate} < ${rentalAllocations[0].allocationEndDate}`, ((data.startDate >= rentalAllocations[0].allocationStartDate) && (data.startDate <= rentalAllocations[0].allocationEndDate)));
-                            console.log(`Overlap 2 : ${data.endDate} < ${rentalAllocations[0].allocationStartDate}`, ((data.endDate >= rentalAllocations[0].allocationStartDate) && (data.endDate <= rentalAllocations[0].allocationEndDate)));
+                            // console.log(`Overlap 1 : ${data.startDate} < ${rentalAllocations[0].allocationEndDate}`, ((data.startDate >= rentalAllocations[0].allocationStartDate) && (data.startDate <= rentalAllocations[0].allocationEndDate)));
+                            // console.log(`Overlap 2 : ${data.endDate} < ${rentalAllocations[0].allocationStartDate}`, ((data.endDate >= rentalAllocations[0].allocationStartDate) && (data.endDate <= rentalAllocations[0].allocationEndDate)));
                             
                             
                             const overlap = ((data.startDate >= rentalAllocations[0].allocationStartDate) && (data.startDate <= rentalAllocations[0].allocationEndDate)) || 
                             ((data.endDate >= rentalAllocations[0].allocationStartDate) && (data.endDate <= rentalAllocations[0].allocationEndDate));
 
-                            console.log("Overlap : ", overlap);
+                            // console.log("Overlap : ", overlap);
                             
                             if(!overlap) {
                                 quantity++;
@@ -61,10 +63,10 @@ module.exports = cds.service.impl(async function() {
                             quantity++
                     }
                 }
-                console.log("quantity : ", quantity);
+                // console.log("quantity : ", quantity);
                 
             const productName = await SELECT.one.from('Product').columns('product_Name').where({ID : data.product_ID});
-            console.log("Prudct_Name : ....................", productName);
+            // console.log("Prudct_Name : ....................", productName);
             
                 let Status = ""
                if(quantity >= data.quantity){
@@ -83,7 +85,7 @@ module.exports = cds.service.impl(async function() {
                 }
             }
 
-           //console.log("Res : ", res);
+           console.log("Res : ", res);
             
         return res;
 
@@ -93,13 +95,14 @@ module.exports = cds.service.impl(async function() {
         //const data = equipmentAvailability(ID);
         //console.log(data);
 
-
+        console.log("Read Handler....");
+        
         //The read handler waits until all the proposal data is finshes it works/promises. and then availabilitystatus is added to the response and then sends the result to the browser. 
         await Promise.all(
             data.map(async (responseData) => {
                 console.log("Response Data : ", responseData);
-                res = [];
-                avail = [];
+                let res = [];
+                let avail = [];
                 const result =  await equipmentAvailability(responseData.ID, res);
                 console.log("Results ::::::", result);
 
@@ -113,11 +116,19 @@ module.exports = cds.service.impl(async function() {
 
                 console.log("AVAIL :", avail);
                
-            if(responseData.proposalStatus === "Submitted" || responseData.proposalStatus === "Under Review" || responseData.proposalStatus === "Pending"){    
-                responseData.availabilityStatus =  await avail.every((data) => data === true) ? "Available" : "Not Available";
-            }
+            // if(responseData.proposalStatus === "Under Review" || responseData.proposalStatus === "Pending"){    
+                // responseData.availabilityStatus =  await avail.every((data) => data === true) ? "Available" : "Not Available";
+            // }
 
-            avail.length = 0; 
+                if(avail.includes(false)){
+                    responseData.availabilityStatus = "Not Available"
+                } else {
+                    responseData.availabilityStatus = "Available"
+                }
+
+            // avail.length = 0; 
+            console.log("After Inserts : ", avail);
+            
     
             console.log("Final Data : ", responseData);
             
@@ -135,6 +146,8 @@ module.exports = cds.service.impl(async function() {
         return dataRes;
         
     })
+
+    
 
     this.on('approve', async (req, res) => {
 
@@ -213,10 +226,25 @@ module.exports = cds.service.impl(async function() {
                 return statusApprove;
             }
 
+    });
+
+    this.on('customerVerify', async(req, res) => {
+        const {ID} = req.data;
+
+        const VerifyCusto = await UPDATE(Customers).set({status : 'Approved'}).where({ID : ID});
+        console.log("VerifyCusto : ", VerifyCusto);
+        
+    });
+
+    this.on('customerReject', async(req, res) => {
+        const {ID} = req.data;
+
+        const RejectCusto = await UPDATE(Customers).set({status : 'Rejected'}).where({ID : ID});
+        console.log("Reject Custo : ", RejectCusto);
+        
     })
 
    
-
 })
 
 

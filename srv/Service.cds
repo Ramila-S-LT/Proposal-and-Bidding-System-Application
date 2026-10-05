@@ -2,6 +2,8 @@ namespace proposal.srv;
 
 using {Master.db as db} from '../db/Schema';
 
+using {viewsObject as ViewData} from '../db/View';
+
 
 service Masterapi {
     entity Product as projection on db.Product;
@@ -71,22 +73,53 @@ service customerapi {
 
 @impl : 'srv/Manager_Approval.js'
 service managerapi {
-    entity Proposals as projection on db.Proposals {
-        *,
-        virtual availabilityStatus : String
+
+    @cds.redirection.target
+    entity Proposals as projection on db.Proposals;
+    type AvailabilityDetail {
+        Product_Name            : String;
+        Available_Quantity      : Integer;
+        Requested_Quantity      : Integer;
+        Equipment_Availability  : String;
+    }
+    @cds.redirection.target
+    entity Customers as projection on db.Customers {
+        ID,
+        customerCode,
+        companyName,
+        companyType,
+        contactPerson,
+        customerEmail,
+        phone,
+        proposals,
+        status
     };
+
     entity ProposalItems as projection on db.ProposalItems;
     entity ManagerApprovals as projection on db.ManagerApprovals;
+    function availabilityDetails(ID : UUID) returns array of AvailabilityDetail;
 
-    function availabilityDetails(ID:UUID) returns array of String;
+    // function availabilityDetails(ID:UUID) returns array of String;
 
     action approve(ID:UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
     action rejectProposal(ID:UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
     action underReview(ID : UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
+
+    //cutomers
+    action customerVerify(ID:UUID) returns array of String;
+    action customerReject(ID:UUID) returns array of String;
+    
+
+    //Views
+    entity ApprovalCount as projection on ViewData.Approval;
+    entity CustomerCount as projection on ViewData.CustomerData;
+        
+    // entity UnderReviewCount as projection on ViewData.UnderReview;
+    // entity Pending as projection on ViewData.Pending;
+    // entity Rejected as projection on ViewData.Rejected;
 }
 
 @impl : 'srv/equipment_allocation.js'
-
 service salesapi {
 
     entity Proposals as projection on db.Proposals;
