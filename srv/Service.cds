@@ -69,6 +69,11 @@ service customerapi {
         to:['Users']
     }])
     function login(username : String, password : String) returns array of String;
+    @readonly
+@(restrict : [{ grant : ['READ'], to : ['Users'] }])
+entity Product as projection on db.Product {
+    ID, product_Code, product_Name, basePrice
+};
 }
 
 
