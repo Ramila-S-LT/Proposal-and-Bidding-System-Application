@@ -6,7 +6,7 @@ module.exports = cds.service.impl(async function () {
 
     const {Customers, Proposals, ProposalItems} = this.entities;
 
-
+// just chwcking
     this.before('Register', async (req, res)  => {
 
         const {companyName, companyType, contactPerson, customerEmail, phone, address, city, state, country, username, password} = req.data;
