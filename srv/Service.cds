@@ -74,6 +74,9 @@ service customerapi {
 entity Product as projection on db.Product {
     ID, product_Code, product_Name, basePrice
 };
+
+
+//  checkign the code
 }
 
 
