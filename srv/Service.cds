@@ -1,6 +1,9 @@
 namespace proposal.srv;
 
 using {Master.db as db} from '../db/Schema';
+using {viewObject as rco} from '../db/view';
+
+using {viewsObject as ViewData} from '../db/View';
 
 
 service Masterapi {
@@ -20,10 +23,32 @@ service Masterapi {
 
 @impl : 'srv/Customer_Registration.js'
 service customerapi {
+
+    @(restrict : [
+        {
+            grant : ['READ', 'CREATE'],
+            to : ['Users']
+        }
+    ])
     entity Customers as projection on db.Customers;
+
+    @(restrict : [{
+        grant : ['READ', 'CREATE', 'UPDATE'],
+        to : ['Users']
+    }])
     entity Proposals as projection on db.Proposals;
+
+    @(restrict : [{
+        grant : ['READ', 'CREATE', 'UPDATE'],
+        to : ['Users']
+    }])    
     entity ProposalItems as projection on db.ProposalItems;
 
+
+    @(restrict : [{
+        grant : ['EXECUTE'],
+        to:['Users']
+    }])
     action Register(
         companyName : String,
         companyType : String,
@@ -38,29 +63,134 @@ service customerapi {
         password : String
     ) returns array of String;
 
+
+    @(restrict : [{
+        grant : ['EXECUTE'],
+        to:['Users']
+    }])
     function login(username : String, password : String) returns array of String;
+    @readonly
+@(restrict : [{ grant : ['READ'], to : ['Users'] }])
+entity Product as projection on db.Product {
+    ID, product_Code, product_Name, basePrice
+};
 }
 
 
 @impl : 'srv/Manager_Approval.js'
 service managerapi {
+
+    @cds.redirection.target
     entity Proposals as projection on db.Proposals;
+    type AvailabilityDetail {
+        Product_Name            : String;
+        Available_Quantity      : Integer;
+        Requested_Quantity      : Integer;
+        Equipment_Availability  : String;
+    }
+    @cds.redirection.target
+    entity Customers as projection on db.Customers {
+        ID,
+        customerCode,
+        companyName,
+        companyType,
+        contactPerson,
+        customerEmail,
+        phone,
+        proposals,
+        status
+    };
+
     entity ProposalItems as projection on db.ProposalItems;
     entity ManagerApprovals as projection on db.ManagerApprovals;
+    function availabilityDetails(ID : UUID) returns array of AvailabilityDetail;
+
+    // function availabilityDetails(ID:UUID) returns array of String;
+
+    action approve(ID:UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
+    action rejectProposal(ID:UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
+    action underReview(ID : UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
+
+    //cutomers
+    action customerVerify(ID:UUID) returns array of String;
+    action customerReject(ID:UUID) returns array of String;
+    
+
+    //Views
+    entity ApprovalCount as projection on ViewData.Approval;
+    entity CustomerCount as projection on ViewData.CustomerData;
+        
+    // entity UnderReviewCount as projection on ViewData.UnderReview;
+    // entity Pending as projection on ViewData.Pending;
+    // entity Rejected as projection on ViewData.Rejected;
 }
 
-
+@impl : 'srv/equipment_allocation.js'
 service salesapi {
+
+    @cds.redirection.target
+    entity Proposals as projection on db.Proposals;
+
+    entity ProposalItems as projection on db.ProposalItems;
+
+   @cds.redirection.target
     entity RentalContracts as projection on db.RentalContracts;
+
     entity RentalAllocations as projection on db.RentalAllocations;
 
-      action checkEquipmentAvailability(
-        equipmentID : String
-    ) returns Boolean;
+    entity Rental_Physical_Equipment as projection on db.Rental_Physical_Equipment;
 
-    action allocateEquipment(
-        proposalID  : String,
-        equipmentID : String
-    ) returns String;
+
+    entity contracts as projection on rco.RentalContract;
+
+    entity ProposalCount as projection on rco.proposalCount;
+
+
+
+    function getApprovedProposals()
+        returns many Proposals;
+
+    function getProposalItems(
+        proposal_ID : UUID
+    )
+        returns many ProposalItems;
+
+    function getAvailableEquipment(proposal_ID:UUID) returns many Rental_Physical_Equipment;
+
+    function getEquipmentHistory( equipment_ID : UUID
+)
+    returns many RentalAllocations;
+
+
+    action createRentalContract(
+        proposal_ID       : UUID,
+        customer_ID       : UUID,
+        contractNumber    : String,
+        contractDate      : Date,
+        startDate         : Date,
+        endDate           : Date,
+        totalRentalAmount : Decimal
+    )
+        returns UUID;
+
+    action allocationEquipment(
+        proposal_ID      : UUID,
+        equipment_ID     : UUID,
+        startDate        : Date,
+        endDate          : Date,
+        rentalContract_ID : UUID
+    )
+        returns String;
+
+    action completeRentalContract(
+        contract_ID : UUID
+    )
+        returns String;
+    
+    // notification
+     action sendCustomerNotification(
+        customer_ID : UUID,
+        message     : String
+    )
+        returns String;
 }
-

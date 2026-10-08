@@ -5,9 +5,10 @@ using { cuid, managed } from '@sap/cds/common';
 
 //Master Data
 
+@cds.persistence.exists
 entity Product : cuid {
     product_Type : String;  //identifies what type of product it is ...like Road roaler,JCB
-    product_Code : String;  //unic busiess code used to identify the product
+    product_Code : String;  //unic busiess code used to identify the product  
     product_Name : String;  //name of the product
     product_Group: String;  //Group similer products ....like construction equipments
     Category     : String;  //more specific classification
@@ -22,9 +23,11 @@ entity Product : cuid {
     prod_attach_junc : Association to  many Prod_Attach on prod_attach_junc.product_ref = $self;
     prod_oper_junc : Association to  many Prod_Operator on prod_oper_junc.Prod_ref = $self;
  
-}
+} 
  
  
+
+@cds.persistence.exists
 entity Rental_Physical_Equipment : cuid {
     equipment_Code : String;
     equipment_Name : String;
@@ -46,7 +49,8 @@ entity Rental_Physical_Equipment : cuid {
  
 // }
  
- 
+
+@cds.persistence.exists
 entity Machine_Operator : cuid {
     operator_Code       : String;
     operator_Name       : String;
@@ -62,6 +66,8 @@ entity Machine_Operator : cuid {
 }
  
  
+
+@cds.persistence.exists
 entity Spare_Parts : cuid {
     Part_Number         : String;
     part_Name           : String;
@@ -74,6 +80,8 @@ entity Spare_Parts : cuid {
  
 }
  
+
+@cds.persistence.exists
 entity Attachment : cuid {
     attachment_Code : String;
     attachment_Name : String;
@@ -99,24 +107,32 @@ entity Attachment : cuid {
 //}
  
  
+
+@cds.persistence.exists
 entity Prod_Attach {
     key product_ref : Association to Product;
     key attachment_ref : Association to Attachment;
 }
  
+
+@cds.persistence.exists
 entity Spare_Product {
     key spare_ref : Association to Spare_Parts;
     key product_ref : Association to Product;
 }
  
+
+@cds.persistence.exists
 entity Prod_Operator {
     key Prod_ref : Association to Product;
     key Machine_ref : Association to Machine_Operator;
 }
- 
+
 
 //Transactional Data
 
+
+@cds.persistence.exists
 entity Customers : cuid, managed {
  
     customerCode     : String;
@@ -148,6 +164,8 @@ entity Customers : cuid, managed {
 }
  
  
+
+@cds.persistence.exists
 entity Proposals : cuid, managed {
  
     proposalNumber   : String;
@@ -155,7 +173,7 @@ entity Proposals : cuid, managed {
  
     proposalType     : String;
     // RENTAL, SALES
- 
+
     proposalStatus   : String default 'Pending';
     // DRAFT, SUBMITTED, APPROVED, REJECTED
  
@@ -166,6 +184,8 @@ entity Proposals : cuid, managed {
     customerRemarks  : String;
  
     submittedAt      : Timestamp;
+
+    availabilityStatus: String;
  
     customer         : Association to Customers;
  
@@ -179,6 +199,7 @@ entity Proposals : cuid, managed {
 }
  
  
+@cds.persistence.exists
 entity ProposalItems : cuid {
  
     quantity         : Integer;
@@ -203,8 +224,14 @@ entity ProposalItems : cuid {
     product : Association to Product;
 
 }
- 
- 
+
+// entity EquipmentBookings :  cuid, managed {
+//     equipmentName : String;
+    
+// }
+
+
+@cds.persistence.exists
 entity ManagerApprovals : cuid, managed {
  
     reviewDate       : Date;
@@ -219,10 +246,13 @@ entity ManagerApprovals : cuid, managed {
     proposal         : Association to Proposals;
 }
  
- 
+
+@cds.persistence.exists
+
 entity RentalContracts : cuid, managed {
  
-    contractNumber    : String;
+    @assert.unique: {contractNumber:[contractNumber]} 
+    contractNumber    : String not null;
  
     contractDate      : Date;
  
@@ -243,6 +273,7 @@ entity RentalContracts : cuid, managed {
 }
  
  
+@cds.persistence.exists
 entity RentalAllocations : cuid, managed {
  
     allocationNumber     : String;
@@ -252,7 +283,7 @@ entity RentalAllocations : cuid, managed {
     allocationStartDate  : Date;
     allocationEndDate    : Date;
  
-    allocationStatus     : String default 'Pending';
+    allocationStatus     : String;
     // PENDING, ALLOCATED, HANDED_OVER,
     // RELEASED, CANCELLED
 
@@ -266,4 +297,5 @@ entity RentalAllocations : cuid, managed {
 }
 
 
- 
+      
+      
