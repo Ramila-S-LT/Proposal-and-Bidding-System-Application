@@ -13,6 +13,19 @@ entity CustomerData as select from view.Customers as prop {
 } group by prop.status;
 
 
+entity EquipmentStatusCount as select from view.Rental_Physical_Equipment as RPE {
+    key RPE.status,
+    count(*) as Equipment_Count : Integer
+} group by RPE.status;
+
+entity EquipmentCOuntByProd as select from view.Product as P left join view.Rental_Physical_Equipment as E on E.product_ref.ID = P.ID {
+    key P.ID,
+    P.product_Name,
+    count(E.ID) as eqipmentCount : Integer
+} group by P.ID, P.product_Name;
+
+
+
 // entity UnderReview as select from view.Proposals as prop {
 //     count(*) as underReviewData
 // } where prop.proposalStatus == 'Under Review';

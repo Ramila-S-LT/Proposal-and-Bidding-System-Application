@@ -119,6 +119,8 @@ service managerapi {
     //Views
     entity ApprovalCount as projection on ViewData.Approval;
     entity CustomerCount as projection on ViewData.CustomerData;
+    entity EquipmetCount as projection on ViewData.EquipmentStatusCount;
+    entity EquipmentCountByProducts as projection on ViewData.EquipmentCOuntByProd;
         
     // entity UnderReviewCount as projection on ViewData.UnderReview;
     // entity Pending as projection on ViewData.Pending;

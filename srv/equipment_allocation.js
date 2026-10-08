@@ -5,6 +5,7 @@ module.exports = cds.service.impl(function () {
     const {
         Proposals,
         ProposalItems,
+        RentalContracts, 
         RentalAllocations,
         Rental_Physical_Equipment,
         RentalContracts
