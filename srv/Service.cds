@@ -188,9 +188,8 @@ service salesapi {
         returns String;
     
     // notification
-     action sendCustomerNotification(
-        customer_ID : UUID,
-        message     : String
-    )
-        returns String;
+action sendRentalConfirmation(
+    rentalContract_ID : UUID
+)
+    returns String;
 }
