@@ -26,6 +26,7 @@ entity EquipmentCOuntByProd as select from view.Product as P left join view.Rent
 
 
 
+
 // entity UnderReview as select from view.Proposals as prop {
 //     count(*) as underReviewData
 // } where prop.proposalStatus == 'Under Review';

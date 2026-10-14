@@ -77,7 +77,8 @@ entity Product as projection on db.Product {
 }
 
 
-@impl : 'srv/Manager_Approval.js'
+@(impl : ['srv/Manager_Approval.js', 'srv/rental_management.js']) 
+
 service managerapi {
 
     @cds.redirection.target
@@ -127,6 +128,7 @@ service managerapi {
     // entity Rejected as projection on ViewData.Rejected;
 }
 
+
 @impl : 'srv/equipment_allocation.js'
 service salesapi {
 
@@ -173,7 +175,7 @@ service salesapi {
         endDate           : Date,
         totalRentalAmount : Decimal
     )
-        returns UUID;
+        returns String;
 
     action allocationEquipment(
         proposal_ID      : UUID,
@@ -190,8 +192,17 @@ service salesapi {
         returns String;
     
     // notification
-action sendRentalConfirmation(
-    rentalContract_ID : UUID
-)
-    returns String;
+action sendRentalConfirmation(rentalContract_ID : UUID) returns {
+    success : Boolean;
+    message : String;
+};
+
+
+action generateRentalPdf(rentalContract_ID : UUID) returns LargeString;
+
+action sendRentalPdfMail(rentalContract_ID : UUID) returns {
+  success : Boolean;
+  message : String;
+};
+
 }

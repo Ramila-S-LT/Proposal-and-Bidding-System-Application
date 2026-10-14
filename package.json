@@ -4,9 +4,10 @@
   "dependencies": {
     "@cap-js-community/odata-v2-adapter": "^1.16.1",
     "@cap-js/hana": "^3.1.1",
+    "@sap_oss/alert-notification-client": "^1.14.0",
     "@sap/cds": "^10",
     "@sap/xssec": "^4",
-    "nodemailer": "^10.0.15",
+    "nodemailer": "^10.1.0",
     "pdfkit": "^0.20.2"
   },
   "devDependencies": {
@@ -22,9 +23,21 @@
   "cds": {
     "requires": {
       "auth": {
-        "kind": "dummy",
+        "kind": "dummy"
+      },
+      "PDFSHIFT": {
+        "kind": "rest",
+        "credentials": {
+          "url": "https://api.pdfshift.io/v3",
+          "apiKey": "sk_274affaa0473530fe4d25c1e7b4b4208812acb01"
+        }
+      },
+      "[production]": {
         "db": {
           "kind": "hana"
+        },
+        "auth": {
+          "kind": "mocked"
         }
       }
     }
