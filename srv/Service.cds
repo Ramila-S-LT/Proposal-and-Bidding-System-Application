@@ -23,31 +23,31 @@ service Masterapi {
 @impl : 'srv/Customer_Registration.js'
 service customerapi {
 
-    @(restrict : [
-        {
-            grant : ['READ', 'CREATE'],
-            to : ['Users']
-        }
-    ])
+    // @(restrict : [
+    //     {
+    //         grant : ['READ', 'CREATE'],
+    //         to : ['Users']
+    //     }
+    // ])
     entity Customers as projection on db.Customers;
 
-    @(restrict : [{
-        grant : ['READ', 'CREATE', 'UPDATE'],
-        to : ['Users']
-    }])
+    // @(restrict : [{
+    //     grant : ['READ', 'CREATE', 'UPDATE'],
+    //     to : ['Users']
+    // }])
     entity Proposals as projection on db.Proposals;
 
-    @(restrict : [{
-        grant : ['READ', 'CREATE', 'UPDATE'],
-        to : ['Users']
-    }])    
+    // @(restrict : [{
+    //     grant : ['READ', 'CREATE', 'UPDATE'],
+    //     to : ['Users']
+    // }])    
     entity ProposalItems as projection on db.ProposalItems;
 
 
-    @(restrict : [{
-        grant : ['EXECUTE'],
-        to:['Users']
-    }])
+    // @(restrict : [{
+    //     grant : ['EXECUTE'],
+    //     to:['Users']
+    // }])
     action Register(
         companyName : String,
         companyType : String,
@@ -63,13 +63,13 @@ service customerapi {
     ) returns array of String;
 
 
-    @(restrict : [{
-        grant : ['EXECUTE'],
-        to:['Users']
-    }])
+    // @(restrict : [{
+    //     grant : ['EXECUTE'],
+    //     to:['Users']
+    // }])
     function login(username : String, password : String) returns array of String;
     @readonly
-@(restrict : [{ grant : ['READ'], to : ['Users'] }])
+// @(restrict : [{ grant : ['READ'], to : ['Users'] }])
 entity Product as projection on db.Product {
     ID, product_Code, product_Name, basePrice
 };
@@ -81,6 +81,7 @@ service managerapi {
 
     @cds.redirection.target
     entity Proposals as projection on db.Proposals;
+    
     type AvailabilityDetail {
         Product_Name            : String;
         Available_Quantity      : Integer;
@@ -101,6 +102,9 @@ service managerapi {
     };
 
     entity ProposalItems as projection on db.ProposalItems;
+    
+    // entity Products as projection on db.Product;
+
     entity ManagerApprovals as projection on db.ManagerApprovals;
     function availabilityDetails(ID : UUID) returns array of AvailabilityDetail;
 
@@ -111,7 +115,13 @@ service managerapi {
     action underReview(ID : UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
 
     //cutomers
-    action customerVerify(ID:UUID) returns array of String;
+
+    type CustomerVerifyResult{
+        succes : Boolean;
+        message : String;
+    }
+
+    action customerVerify(ID:UUID) returns CustomerVerifyResult;
     action customerReject(ID:UUID) returns array of String;
     
 
@@ -127,7 +137,9 @@ service managerapi {
 }
 
 
-@(impl : ['srv/equipment_allocation.js', 'srv/rental_management.js'])
+// @(impl : ['srv/equipment_allocation.js', 'srv/rental_management.js'])
+
+@impl: 'srv/SalesapiHandlers.js'
 service salesapi {
 
     @cds.redirection.target

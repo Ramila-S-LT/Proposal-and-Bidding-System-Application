@@ -48,9 +48,7 @@ module.exports = cds.service.impl(function () {
             return req.error(400, "Proposal ID is required.");
         }
 
-        const proposal = await SELECT.one
-            .from(Proposals)
-            .where({ ID: proposal_ID });
+        const proposal = await SELECT.one.from(Proposals).where({ ID: proposal_ID });
 
         if (!proposal) {
             return req.error(404, "Approved proposal not found.");
@@ -63,16 +61,12 @@ module.exports = cds.service.impl(function () {
             );
         }
 
-        return SELECT
-            .from(ProposalItems)
-            .where({ proposals_ID: proposal_ID });
+        return SELECT.from(ProposalItems).where({ proposals_ID: proposal_ID });
     });
-
-    // =====================================================
     // GET AVAILABLE EQUIPMENT
     // Only equipment matching the selected proposal's
     // requested products and having AVAILABLE status.
-    // =====================================================
+
 
     this.on("getAvailableEquipment", async (req) => {
         const { proposal_ID } = req.data;

@@ -1,5 +1,5 @@
+
 const cds = require("@sap/cds");
-const nodemailer = require("nodemailer");
 
 // =========================================================
 // HELPER FUNCTIONS
@@ -18,27 +18,85 @@ function normalizeStatus(value) {
 }
 
 // =========================================================
-// EMAIL HELPER (SMTP) - sends the confirmation to the customer
+// BREVO EMAIL HELPER
+// Sends the customer an email with the PDF attachment.
 // =========================================================
 
-let _transporter;
-function getTransporter() {
-    if (!_transporter) {
-        _transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: Number(process.env.SMTP_PORT || 587),
-            secure: String(process.env.SMTP_SECURE) === "true",
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
-            }
-        });
+async function sendBrevoEmail({ to, customerName, contractNumber, pdfBuffer }) {
+    const apiKey = process.env.BREVO_API_KEY;
+    const senderEmail = process.env.BREVO_SENDER_EMAIL;
+
+    if (!apiKey || !senderEmail) {
+        throw new Error(
+            "Brevo configuration is missing. Check BREVO_API_KEY and BREVO_SENDER_EMAIL."
+        );
     }
-    return _transporter;
+
+    const subject = `Rental confirmation - ${contractNumber}`;
+
+    const emailBody = [
+        `Dear ${customerName},`,
+        "",
+        `Your rental contract ${contractNumber} has been confirmed.`,
+        "Please find the rental contract PDF attached.",
+        "",
+        "Thank you.",
+        "GMMCO Team"
+    ].join("\n");
+
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+            accept: "application/json",
+            "api-key": apiKey,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            sender: {
+                email: senderEmail,
+                name: "GMMCO Rental System"
+            },
+            to: [
+                {
+                    email: to,
+                    name: customerName
+                }
+            ],
+            subject,
+            textContent: emailBody,
+            attachment: [
+                {
+                    name: `Rental-${contractNumber}.pdf`,
+                    content: pdfBuffer.toString("base64")
+                }
+            ]
+        })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+
+        console.error(
+            "Brevo email request failed:",
+            response.status,
+            errorText.slice(0, 1000)
+        );
+
+        throw new Error(
+            `Brevo email request failed with status ${response.status}.`
+        );
+    }
+
+    const result = await response.json();
+
+    console.log("Brevo accepted the rental confirmation email.");
+
+    return result;
 }
 
 // =========================================================
-// SAP ALERT NOTIFICATION SERVICE (internal alerts only)
+// SAP ALERT NOTIFICATION SERVICE
+// Used for internal alerts only.
 // =========================================================
 
 async function sendAlert(subject, body, severity = "INFO", tags = {}) {
@@ -62,18 +120,25 @@ async function sendAlert(subject, body, severity = "INFO", tags = {}) {
             }
         }
 
-        // Environment-variable fallback for local development.
-        const clientId = credentials.client_id || process.env.ANS_CLIENT_ID;
-        const clientSecret = credentials.client_secret || process.env.ANS_CLIENT_SECRET;
-        const tokenUrl = credentials.oauth_url || process.env.ANS_TOKEN_URL;
-        const apiUrl = credentials.url || process.env.ANS_API_URL;
+        const clientId =
+            credentials.client_id || process.env.ANS_CLIENT_ID;
+        const clientSecret =
+            credentials.client_secret || process.env.ANS_CLIENT_SECRET;
+        const tokenUrl =
+            credentials.oauth_url || process.env.ANS_TOKEN_URL;
+        const apiUrl =
+            credentials.url || process.env.ANS_API_URL;
 
         if (!clientId || !clientSecret || !tokenUrl || !apiUrl) {
-            console.error("ANS configuration is incomplete. Check the service binding.");
+            console.error(
+                "ANS configuration is incomplete. Check the service binding."
+            );
             return false;
         }
 
-        const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+        const basic = Buffer.from(
+            `${clientId}:${clientSecret}`
+        ).toString("base64");
 
         const tokenResponse = await fetch(tokenUrl, {
             method: "POST",
@@ -100,13 +165,14 @@ async function sendAlert(subject, body, severity = "INFO", tags = {}) {
             return false;
         }
 
-        // ANS tag values must be strings
         const safeTags = {};
+
         for (const [key, value] of Object.entries(tags || {})) {
             safeTags[key] = String(value ?? "");
         }
 
-        const eventUrl = `${apiUrl.replace(/\/+$/, "")}/cf/producer/v1/resource-events`;
+        const eventUrl =
+            `${apiUrl.replace(/\/+$/, "")}/cf/producer/v1/resource-events`;
 
         const eventResponse = await fetch(eventUrl, {
             method: "POST",
@@ -115,7 +181,7 @@ async function sendAlert(subject, body, severity = "INFO", tags = {}) {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                eventType: "RentalMail", // keep the same one your ANS subscription uses
+                eventType: "RentalMail",
                 resource: {
                     resourceName: "rental-service",
                     resourceType: "service"
@@ -163,7 +229,7 @@ module.exports = cds.service.impl(function () {
     const Customers = masterEntities.Customers;
 
     // =====================================================
-    // BUILD RENTAL CONTRACT PDF (PDFShift, no email here)
+    // BUILD RENTAL CONTRACT PDF
     // =====================================================
 
     async function buildRentalPdf(contractId) {
@@ -179,6 +245,12 @@ module.exports = cds.service.impl(function () {
             throw new Error("Rental contract not found.");
         }
 
+        if (!contract.customer_ID) {
+            throw new Error(
+                "The rental contract does not have a customer assigned."
+            );
+        }
+
         if (!Customers) {
             throw new Error(
                 "Customer entity Master.db.Customers could not be found."
@@ -190,7 +262,9 @@ module.exports = cds.service.impl(function () {
             .where({ ID: contract.customer_ID });
 
         if (!customer) {
-            throw new Error("Customer assigned to the contract was not found.");
+            throw new Error(
+                "Customer assigned to the contract was not found."
+            );
         }
 
         const allocations = await SELECT
@@ -203,8 +277,8 @@ module.exports = cds.service.impl(function () {
 
         const equipment = equipmentIds.length
             ? await SELECT.from(Rental_Physical_Equipment).where({
-                  ID: { in: equipmentIds }
-              })
+                ID: { in: equipmentIds }
+            })
             : [];
 
         const equipmentRows = equipment
@@ -226,8 +300,28 @@ module.exports = cds.service.impl(function () {
             <head>
                 <meta charset="UTF-8">
                 <title>Rental Contract</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        padding: 30px;
+                        color: #222;
+                    }
+                    table {
+                        border-collapse: collapse;
+                        width: 100%;
+                        margin-top: 12px;
+                    }
+                    th, td {
+                        border: 1px solid #888;
+                        padding: 8px;
+                        text-align: left;
+                    }
+                    th {
+                        background: #f2f2f2;
+                    }
+                </style>
             </head>
-            <body style="font-family:Arial,sans-serif;padding:30px;color:#222">
+            <body>
                 <h2>Rental Contract Confirmation</h2>
 
                 <p><strong>Contract Number:</strong>
@@ -253,8 +347,7 @@ module.exports = cds.service.impl(function () {
 
                 <h3>Allocated Equipment</h3>
 
-                <table border="1" cellpadding="8"
-                    style="border-collapse:collapse;width:100%">
+                <table>
                     <thead>
                         <tr>
                             <th>Equipment Code</th>
@@ -274,34 +367,56 @@ module.exports = cds.service.impl(function () {
             </html>
         `;
 
-        const pdfConfig = cds.env.requires?.PDFSHIFT?.credentials;
+        const pdfUrl = process.env.PDFSHIFT_URL;
+        const pdfApiKey = process.env.PDFSHIFT_API_KEY;
 
-        if (!pdfConfig?.url || !pdfConfig?.apiKey) {
+        if (!pdfUrl || !pdfApiKey) {
             throw new Error(
-                "PDFShift configuration is missing. Check your application configuration."
+                "PDFShift configuration is missing. Check PDFSHIFT_URL and PDFSHIFT_API_KEY."
             );
         }
 
         const pdfResponse = await fetch(
-            `${pdfConfig.url.replace(/\/+$/, "")}/convert/pdf`,
+            `${pdfUrl.replace(/\/+$/, "")}/convert/pdf`,
             {
                 method: "POST",
                 headers: {
-                    "X-API-Key": pdfConfig.apiKey,
+                    "X-API-Key": pdfApiKey,
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
                     source: html,
-                    sandbox: true
+                    sandbox: false
                 })
             }
         );
 
         if (!pdfResponse.ok) {
-            throw new Error(`PDFShift failed: ${await pdfResponse.text()}`);
+            const errorText = await pdfResponse.text();
+
+            console.error(
+                "PDFShift request failed:",
+                pdfResponse.status,
+                errorText.slice(0, 1000)
+            );
+
+            throw new Error(
+                `PDFShift PDF generation failed with status ${pdfResponse.status}.`
+            );
         }
 
-        const buffer = Buffer.from(await pdfResponse.arrayBuffer());
+        const buffer = Buffer.from(
+            await pdfResponse.arrayBuffer()
+        );
+
+        if (
+            buffer.length < 5 ||
+            buffer.subarray(0, 5).toString() !== "%PDF-"
+        ) {
+            throw new Error(
+                "PDFShift did not return a valid PDF file."
+            );
+        }
 
         return { contract, customer, buffer };
     }
@@ -322,88 +437,90 @@ module.exports = cds.service.impl(function () {
             return buffer.toString("base64");
         } catch (error) {
             console.error("PDF generation failed:", error.message);
-            return req.error(502, error.message);
+            return req.error(502, "Rental contract PDF generation failed.");
         }
     });
 
     // =====================================================
     // SEND RENTAL CONFIRMATION
-    // Emails the customer with the generated PDF attached,
-    // then sends an internal ANS alert (optional).
+    // Sends one email with the rental contract PDF attached.
+    // Call this after all equipment allocations succeed.
     // =====================================================
 
     this.on("sendRentalConfirmation", async (req) => {
         const { rentalContract_ID } = req.data;
-        console.log("sendRentalConfirmation called:", rentalContract_ID);
+
+        console.log(
+            "sendRentalConfirmation called:",
+            rentalContract_ID
+        );
 
         if (!rentalContract_ID) {
-            return { success: false, message: "Rental contract ID is required." };
+            return {
+                success: false,
+                message: "Rental contract ID is required."
+            };
         }
 
         try {
             const { contract, customer, buffer } =
                 await buildRentalPdf(rentalContract_ID);
 
-            const customerEmail = (customer?.customerEmail || "").trim();
-            const customerName = customer?.companyName || "Customer";
+            const customerEmail =
+                String(customer.customerEmail || "").trim();
+
+            const customerName =
+                String(customer.companyName || "Customer");
 
             if (!customerEmail) {
                 return {
                     success: false,
-                    message: "Customer email is not available for this contract."
+                    message:
+                        "Customer email is not available for this contract."
                 };
             }
 
-            // 1. Email the customer with the PDF attached
-            await getTransporter().sendMail({
-                from: process.env.MAIL_FROM || process.env.SMTP_USER,
+            // 1. Send the customer email through Brevo.
+            await sendBrevoEmail({
                 to: customerEmail,
-                subject: `Rental confirmation - ${contract.contractNumber}`,
-                text: [
-                    `Dear ${customerName},`,
-                    "",
-                    `Your rental contract ${contract.contractNumber} has been confirmed.`,
-                    "Please find the rental confirmation attached.",
-                    "",
-                    "Thank you."
-                ].join("\n"),
-                attachments: [
-                    {
-                        filename: `Rental-${contract.contractNumber}.pdf`,
-                        content: buffer,
-                        contentType: "application/pdf"
-                    }
-                ]
+                customerName,
+                contractNumber: contract.contractNumber,
+                pdfBuffer: buffer
             });
-            console.log("Customer email sent to:", customerEmail);
 
-            // 2. Internal ANS alert. Never affects the result.
+            // 2. Send an optional internal ANS alert.
+            // ANS failure must not turn a successful email into a failure.
             try {
                 await sendAlert(
                     `Rental confirmation sent - ${contract.contractNumber}`,
-                    `Confirmation emailed to ${customerName} (${customerEmail})`,
+                    `A rental confirmation email was accepted by Brevo for contract ${contract.contractNumber}.`,
                     "INFO",
                     {
-                        customerEmail,
                         contractNumber: String(contract.contractNumber)
                     }
                 );
-            } catch (e) {
-                console.warn("ANS alert skipped:", e.message);
+            } catch (error) {
+                console.warn(
+                    "ANS alert skipped:",
+                    error.message
+                );
             }
 
             return {
                 success: true,
-                message: `Rental confirmation notification sent to ${customerEmail}.`
+                message:
+                    "Rental confirmation email was accepted by Brevo."
             };
         } catch (error) {
-            console.error("Rental confirmation failed:", error);
+            console.error(
+                "Rental confirmation failed:",
+                error.message
+            );
+
             return {
                 success: false,
-                // Temporary while testing. Change to a generic message later.
                 message:
-    "Could not send confirmation: " +
-    (error.message || error.code || (error.errors && error.errors[0]?.message) || "Unknown error")
+                    "Could not send the rental confirmation. Check the application logs."
             };
         }
     });
@@ -504,7 +621,10 @@ module.exports = cds.service.impl(function () {
         const start = new Date(startDate);
         const end = new Date(endDate);
 
-        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        if (
+            Number.isNaN(start.getTime()) ||
+            Number.isNaN(end.getTime())
+        ) {
             return req.error(400, "Invalid rental dates.");
         }
 
@@ -522,7 +642,10 @@ module.exports = cds.service.impl(function () {
             !Number.isFinite(Number(totalRentalAmount)) ||
             Number(totalRentalAmount) < 0
         ) {
-            return req.error(400, "A valid total rental amount is required.");
+            return req.error(
+                400,
+                "A valid total rental amount is required."
+            );
         }
 
         const contractId = cds.utils.uuid();
@@ -584,12 +707,18 @@ module.exports = cds.service.impl(function () {
         const start = new Date(startDate);
         const end = new Date(endDate);
 
-        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        if (
+            Number.isNaN(start.getTime()) ||
+            Number.isNaN(end.getTime())
+        ) {
             return req.error(400, "Invalid rental dates.");
         }
 
         if (start > end) {
-            return req.error(400, "Start date cannot be after the end date.");
+            return req.error(
+                400,
+                "Start date cannot be after the end date."
+            );
         }
 
         const contract = await SELECT.one
@@ -638,7 +767,11 @@ module.exports = cds.service.impl(function () {
 
     this.on("completeRentalContract", async (req) => {
         const { contract_ID } = req.data;
-        console.log("completeRentalContract called:", contract_ID);
+
+        console.log(
+            "completeRentalContract called:",
+            contract_ID
+        );
 
         if (!contract_ID) {
             return req.reject(400, "Contract ID is required.");
@@ -667,7 +800,7 @@ module.exports = cds.service.impl(function () {
             );
         }
 
-        // 1. Release equipment
+        // 1. Release equipment.
         for (const allocation of allocations) {
             if (!allocation.equipment_ID) {
                 continue;
@@ -682,18 +815,20 @@ module.exports = cds.service.impl(function () {
                 .where({ ID: allocation.ID });
         }
 
-        // 2. Complete the contract
+        // 2. Complete the contract.
         await UPDATE(RentalContracts)
             .set({ contractStatus: "Completed" })
             .where({ ID: contract_ID });
 
-        // 3. Internal ANS alert (must never affect the result)
+        // 3. Send an internal ANS alert.
         try {
             const alertSent = await sendAlert(
                 `Rental contract completed - ${contract.contractNumber}`,
                 `Rental contract ${contract.contractNumber} has been completed and its allocated equipment has been released.`,
                 "INFO",
-                { contractNumber: String(contract.contractNumber) }
+                {
+                    contractNumber: String(contract.contractNumber)
+                }
             );
 
             if (!alertSent) {
@@ -703,7 +838,10 @@ module.exports = cds.service.impl(function () {
                 );
             }
         } catch (error) {
-            console.error("ANS alert failed (contract already completed):", error);
+            console.error(
+                "ANS alert failed (contract already completed):",
+                error.message
+            );
         }
 
         return "Rental contract completed and equipment released successfully.";
