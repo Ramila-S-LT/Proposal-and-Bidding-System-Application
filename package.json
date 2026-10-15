@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "dependencies": {
     "@cap-js-community/odata-v2-adapter": "^1.16.1",
-    "@cap-js/hana": "^3.1.1",
-    "@sap_oss/alert-notification-client": "^1.14.0",
+    "@cap-js/hana": "^3",
     "@sap/cds": "^10",
     "@sap/xssec": "^4",
     "nodemailer": "^10.1.0",
