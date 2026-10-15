@@ -24,8 +24,9 @@ modules:
         properties:
           srv-url: ${default-url}
     requires:
-      - name: Proposal-Rental-System-auth
       - name: Proposal-Rental-System-db
+      - name: Proposal-Rental-System-auth
+      - name: Proposal-Rental-System-destination
 
   - name: Proposal-Rental-System-db-deployer
     type: hdb
@@ -49,6 +50,7 @@ modules:
           url: ~{srv-url}
           forwardAuthToken: true
       - name: Proposal-Rental-System-auth
+      - name: Proposal-Rental-System-destination
     provides:
       - name: app-api
         properties:
@@ -56,6 +58,11 @@ modules:
           app-uri: ${default-uri}
 
 resources:
+  - name: Proposal-Rental-System-db
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared
   - name: Proposal-Rental-System-auth
     type: org.cloudfoundry.managed-service
     parameters:
@@ -78,8 +85,8 @@ resources:
               - '$XSAPPNAME.Users'
     requires:
       - name: app-api
-  - name: Proposal-Rental-System-db
-    type: com.sap.xs.hdi-container
+  - name: Proposal-Rental-System-destination
+    type: org.cloudfoundry.managed-service
     parameters:
-      service: hana
-      service-plan: hdi-shared
+      service: destination
+      service-plan: lite

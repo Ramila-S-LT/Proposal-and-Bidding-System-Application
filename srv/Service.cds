@@ -14,10 +14,9 @@ service Masterapi {
     entity Spare_Parts as projection on db.Spare_Parts;
     entity Attachment as projection on db.Attachment;
    // entity Rental_Attachment_Pricing as projection on db.Rental_Attachment_Pricing;
-    entity Prod_Attach as projection on db.Prod_Attach;
+    entity Prod_Attach as projection on db.Prod_Attach; 
     entity Spare_Product as projection on db.Spare_Product;
     entity Prod_Operator as projection on db.Prod_Operator;
-   
 }
 
 
@@ -83,7 +82,7 @@ service customerapi {
 }
 
 
-@impl : 'srv/Manager_Approval.js'
+@impl : 'srv/Manager_Approval.js' 
 service managerapi {
 
     @cds.redirection.target
@@ -125,13 +124,16 @@ service managerapi {
     //Views
     entity ApprovalCount as projection on ViewData.Approval;
     entity CustomerCount as projection on ViewData.CustomerData;
+    entity EquipmetCount as projection on ViewData.EquipmentStatusCount;
+    entity EquipmentCountByProducts as projection on ViewData.EquipmentCOuntByProd;
         
     // entity UnderReviewCount as projection on ViewData.UnderReview;
     // entity Pending as projection on ViewData.Pending;
     // entity Rejected as projection on ViewData.Rejected;
 }
 
-@impl : 'srv/equipment_allocation.js'
+
+@(impl : ['srv/equipment_allocation.js', 'srv/rental_management.js'])
 service salesapi {
 
     @cds.redirection.target
@@ -177,7 +179,7 @@ service salesapi {
         endDate           : Date,
         totalRentalAmount : Decimal
     )
-        returns UUID;
+        returns String;
 
     action allocationEquipment(
         proposal_ID      : UUID,
@@ -194,9 +196,17 @@ service salesapi {
         returns String;
     
     // notification
-     action sendCustomerNotification(
-        customer_ID : UUID,
-        message     : String
-    )
-        returns String;
+action sendRentalConfirmation(rentalContract_ID : UUID) returns {
+    success : Boolean;
+    message : String;
+};
+
+
+action generateRentalPdf(rentalContract_ID : UUID) returns LargeString;
+
+action sendRentalPdfMail(rentalContract_ID : UUID) returns {
+  success : Boolean;
+  message : String;
+};
+
 }
