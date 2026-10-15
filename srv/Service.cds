@@ -87,6 +87,7 @@ service managerapi {
 
     @cds.redirection.target
     entity Proposals as projection on db.Proposals;
+    
     type AvailabilityDetail {
         Product_Name            : String;
         Available_Quantity      : Integer;
@@ -107,6 +108,9 @@ service managerapi {
     };
 
     entity ProposalItems as projection on db.ProposalItems;
+    
+    // entity Products as projection on db.Product;
+
     entity ManagerApprovals as projection on db.ManagerApprovals;
     function availabilityDetails(ID : UUID) returns array of AvailabilityDetail;
 
@@ -117,7 +121,13 @@ service managerapi {
     action underReview(ID : UUID, decision : String, comments : String, approvedAmount : Decimal) returns array of String;
 
     //cutomers
-    action customerVerify(ID:UUID) returns array of String;
+
+    type CustomerVerifyResult{
+        succes : Boolean;
+        message : String;
+    }
+
+    action customerVerify(ID:UUID) returns CustomerVerifyResult;
     action customerReject(ID:UUID) returns array of String;
     
 
@@ -133,7 +143,9 @@ service managerapi {
 }
 
 
-@(impl : ['srv/equipment_allocation.js', 'srv/rental_management.js'])
+// @(impl : ['srv/equipment_allocation.js', 'srv/rental_management.js'])
+
+@impl: 'srv/SalesapiHandlers.js'
 service salesapi {
 
     @cds.redirection.target

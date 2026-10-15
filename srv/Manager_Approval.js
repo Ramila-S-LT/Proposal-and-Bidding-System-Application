@@ -1,8 +1,15 @@
 const UPDATE = require("@sap/cds/lib/ql/UPDATE");
+require('dotenv').config()
+const ax = require('axios');
+const https = require('https');
 
 module.exports = cds.service.impl(async function() {
 
     const {Proposals, ProposalItems, ManagerApprovals, Customers} = this.entities;
+
+    const conn = await cds.connect.to('ANS-Producer');
+    console.log("Conn : ", conn);
+    
 
     // this.before('approve', async (req, res) => {
     //     const {ID} = req.data;
@@ -146,7 +153,6 @@ module.exports = cds.service.impl(async function() {
         return dataRes;
         
     })
-
     
 
     this.on('approve', async (req, res) => {
@@ -163,7 +169,13 @@ module.exports = cds.service.impl(async function() {
             
             if(ManagerData) {
                 const statusApprove = await UPDATE(Proposals).set({proposalStatus : 'Approved'}).where({ID : ID});
+                const GetApprovedData = await SELECT.one.from(Proposals).columns(['*', {ref: ['customer'], expand: ['*']}]).where({ID : ID});
+                console.log("Proposal Data : ", GetApprovedData);
                 
+                
+                let token = await generateToken();
+                await notify(GetApprovedData, token);
+
                 return statusApprove;
             }
 
@@ -189,6 +201,86 @@ module.exports = cds.service.impl(async function() {
             
             
     });
+
+    async function generateToken(){
+        console.log("Token Function");
+        console.log("Client ID : ", process.env.client_id);
+        console.log("Clinet Secret : ", process.env.client_secret);
+        
+        const tokenResponse = await conn.send({
+            method: "POST",
+            path: '/oauth/token',
+            headers : {
+                "Content-Type" : "application/x-www-form-urlencoded"
+            },
+            data: "grant_type=client_credentials"
+        });
+
+        const token = tokenResponse.access_token;
+        console.log("Token  : ", token);
+        
+        return token;
+        
+        // const res = await ax.post(
+        //     "https://f6743c08trial.authentication.us10.hana.ondemand.com/oauth/token",
+        //     "grant_type=client_credentials",
+        //     {
+        //         headers: {
+        //             "Content-Type" : "application/x-www-form-urlencoded"
+        //         },
+        //         auth : {
+        //             username : process.env.client_id,
+        //             password : process.env.client_secret
+        //         }
+        //     }
+        // );
+
+        // console.log("Token : ", res.data.access_token);
+        
+
+        // return res.data.access_token;
+    };
+
+    async function notify(GetApprovedData, token) {
+        console.log("Token inside notify : ", token);
+        console.log("Get Approval Data : ", GetApprovedData);
+        
+        console.log("Url : ", process.env.url);
+
+        await ax.post(
+            'https://clm-sl-ans-live-ans-service-api.cfapps.us10.hana.ondemand.com/cf/producer/v1/resource-events',
+            {
+                eventType : "Approval_Notifications",
+                severity : "INFO",
+                subject : "Proposal Approved",
+                body : "This proposal is approved",
+                category : "NOTIFICATION",
+                tags : {
+                    PropNumber : GetApprovedData.proposalNumber,
+                    customerName : GetApprovedData.customer.companyName
+                },
+                resource : {
+                    resourceName : "GMMCOApplication",
+                    resourceType : "Application",
+                    resourceInstance : "1",
+                    tags: {
+                        application : "Proposal-Creation"
+                    }
+                }
+            },
+                {
+                    headers: {
+                        Authorization : `Bearer ${token}`,
+                        "Content-Type" : "application/json"
+                    },
+                    httpsAgent: new https.Agent({rejectUnauthorized: false}),
+                    proxy : false
+                }
+        );
+
+        console.log("Sent Successfully");
+        
+    };
 
     this.on('rejectProposal', async (req, res) => {
         const {ID, decision, comments, approvedAmount} = req.data;
@@ -229,12 +321,87 @@ module.exports = cds.service.impl(async function() {
     });
 
     this.on('customerVerify', async(req, res) => {
+        console.log("Testing...");
+        
         const {ID} = req.data;
 
         const VerifyCusto = await UPDATE(Customers).set({status : 'Approved'}).where({ID : ID});
         console.log("VerifyCusto : ", VerifyCusto);
+
+        if(VerifyCusto === 0) {
+            req.error(404, "Customer not found")
+            return;
+        }
+
+        const customer = await SELECT.one.from(Customers).where({ID :ID});
+        console.log("customer ............ ", customer);
         
+
+        if(!customer || !customer.customerEmail){
+            req.error(400, "Customer email is missing");
+            return;
+        }
+
+        const token = await generateToken();
+
+        await notifyCustomerVerification(customer, token);
+
+        return {
+            success : true,
+            message : `Customer Verified successfully. Notification event sent for ${customer.customerEmail}`
+        }
     });
+
+
+
+    async function notifyCustomerVerification(customer, token) {
+        console.log("Token : ", token);
+        
+        console.log("Customer Verification notification");
+        console.log("Customer ID : ", customer.ID);
+        console.log("Customer Email : ", customer.customerEmail);
+
+        await ax.post(
+            'https://clm-sl-ans-live-ans-service-api.cfapps.us10.hana.ondemand.com/cf/producer/v1/resource-events',
+            {
+                eventType : "customer_Verified",
+                severity : "INFO",
+                subject: "Customer Verification Successful",
+                body: `Dear ${customer.companyName},\n\nGreetings from GMMCO!\n\nWe are pleased to inform you that your company registration has been successfully verified and approved.\n\nRegistered Email: ${customer.customerEmail}\nVerification Status: Approved\n\nThank you for choosing GMMCO.\n\nBest regards,\nGMMCO Team`,
+                category : "NOTIFICATION",
+                tags : {
+                    customerId : customer.ID,
+                    customerName : customer.companyName,
+                    customerEmail : customer.customerEmail
+                },
+                resource : {
+                    resourceName : "GMMCOApplication",
+                    resourceType : "Application",
+                    resourceInstance : "1",
+                    tags : {
+                        appliation : "Proposal-Creation"
+                    }
+                }
+            },
+
+            {
+                headers : {
+                    Authorization : `Bearer ${token}`,
+                    "Content-Type" : "application/json"
+                },
+                httpsAgent : new https.Agent({
+                    rejectUnauthorized: false
+                }),
+                proxy : false
+            }
+        );
+
+        console.log("Customer Verification event sent successfully");
+        
+        
+        
+        
+    }
 
     this.on('customerReject', async(req, res) => {
         const {ID} = req.data;
