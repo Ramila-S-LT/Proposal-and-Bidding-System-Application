@@ -64,12 +64,21 @@ cds.on("bootstrap", (app) => {
                     pass: process.env.SMTP_PASS
                 }
             });
+            
 
             const info = await transporter.sendMail({
                 from: process.env.SMTP_USER,
                 to,
                 subject: subject || "Customer Verification Successful",
-                text : body || "You accounst is verified successfully."
+                text : body || "You accounst is verified successfully.",
+
+                attachments : pdf ? [
+                    {
+                        filename : "Rental_Contract.pdf",
+                        content : Buffer.from(pdf, "base64"),
+                        contentType : "application.pdf"
+                    }
+                ] : []
             });
 
             console.log("Email send Successfully : ", info.messageId);

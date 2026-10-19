@@ -1,26 +1,8 @@
 
 const cds = require("@sap/cds");
 
-// =========================================================
-// HELPER FUNCTIONS
-// =========================================================
-
-const esc = (value) =>
-    String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-
-function normalizeStatus(value) {
-    return String(value || "").trim().toUpperCase();
-}
-
-// =========================================================
 // BREVO EMAIL HELPER
 // Sends the customer an email with the PDF attachment.
-// =========================================================
 
 async function sendBrevoEmail({ to, customerName, contractNumber, pdfBuffer }) {
     const apiKey = process.env.BREVO_API_KEY;
@@ -94,129 +76,131 @@ async function sendBrevoEmail({ to, customerName, contractNumber, pdfBuffer }) {
     return result;
 }
 
-// =========================================================
 // SAP ALERT NOTIFICATION SERVICE
 // Used for internal alerts only.
-// =========================================================
 
-async function sendAlert(subject, body, severity = "INFO", tags = {}) {
-    try {
-        let credentials = {};
+// async function sendAlert(subject, body, severity = "INFO", tags = {}) {
+//     try {
+//         let credentials = {};
 
-        if (process.env.VCAP_SERVICES) {
-            const vcap = JSON.parse(process.env.VCAP_SERVICES);
+//         if (process.env.VCAP_SERVICES) {
+//             const vcap = JSON.parse(process.env.VCAP_SERVICES);
 
-            for (const services of Object.values(vcap)) {
-                const ansService = services.find(
-                    (service) =>
-                        service.name === "gmmco-alert-instance" ||
-                        service.label === "alert-notification"
-                );
+//             for (const services of Object.values(vcap)) {
+//                 const ansService = services.find(
+//                     (service) =>
+//                         service.name === "gmmco-alert-instance" ||
+//                         service.label === "alert-notification"
+//                 );
 
-                if (ansService) {
-                    credentials = ansService.credentials || {};
-                    break;
-                }
-            }
-        }
+//                 if (ansService) {
+//                     credentials = ansService.credentials || {};
+//                     break;
+//                 }
+//             }
+//         }
 
-        const clientId =
-            credentials.client_id || process.env.ANS_CLIENT_ID;
-        const clientSecret =
-            credentials.client_secret || process.env.ANS_CLIENT_SECRET;
-        const tokenUrl =
-            credentials.oauth_url || process.env.ANS_TOKEN_URL;
-        const apiUrl =
-            credentials.url || process.env.ANS_API_URL;
+//         const clientId =
+//             credentials.client_id || process.env.ANS_CLIENT_ID;
+//         const clientSecret =
+//             credentials.client_secret || process.env.ANS_CLIENT_SECRET;
+//         const tokenUrl =
+//             credentials.oauth_url || process.env.ANS_TOKEN_URL;
+//         const apiUrl =
+//             credentials.url || process.env.ANS_API_URL;
 
-        if (!clientId || !clientSecret || !tokenUrl || !apiUrl) {
-            console.error(
-                "ANS configuration is incomplete. Check the service binding."
-            );
-            return false;
-        }
+//         if (!clientId || !clientSecret || !tokenUrl || !apiUrl) {
+//             console.error(
+//                 "ANS configuration is incomplete. Check the service binding."
+//             );
+//             return false;
+//         }
 
-        const basic = Buffer.from(
-            `${clientId}:${clientSecret}`
-        ).toString("base64");
+//         const basic = Buffer.from(
+//             `${clientId}:${clientSecret}`
+//         ).toString("base64");
 
-        const tokenResponse = await fetch(tokenUrl, {
-            method: "POST",
-            headers: {
-                Authorization: `Basic ${basic}`,
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: "grant_type=client_credentials"
-        });
+//         const tokenResponse = await fetch(tokenUrl, {
+//             method: "POST",
+//             headers: {
+//                 Authorization: `Basic ${basic}`,
+//                 "Content-Type": "application/x-www-form-urlencoded"
+//             },
+//             body: "grant_type=client_credentials"
+//         });
 
-        if (!tokenResponse.ok) {
-            console.error(
-                "ANS token request failed:",
-                tokenResponse.status,
-                (await tokenResponse.text()).slice(0, 500)
-            );
-            return false;
-        }
+//         if (!tokenResponse.ok) {
+//             console.error(
+//                 "ANS token request failed:",
+//                 tokenResponse.status,
+//                 (await tokenResponse.text()).slice(0, 500)
+//             );
+//             return false;
+//         }
 
-        const tokenData = await tokenResponse.json();
+//         const tokenData = await tokenResponse.json();
 
-        if (!tokenData.access_token) {
-            console.error("ANS did not return an access token.");
-            return false;
-        }
+//         if (!tokenData.access_token) {
+//             console.error("ANS did not return an access token.");
+//             return false;
+//         }
 
-        const safeTags = {};
+//         const safeTags = {};
 
-        for (const [key, value] of Object.entries(tags || {})) {
-            safeTags[key] = String(value ?? "");
-        }
+//         for (const [key, value] of Object.entries(tags || {})) {
+//             safeTags[key] = String(value ?? "");
+//         }
 
-        const eventUrl =
-            `${apiUrl.replace(/\/+$/, "")}/cf/producer/v1/resource-events`;
+//         const eventUrl =
+//             `${apiUrl.replace(/\/+$/, "")}/cf/producer/v1/resource-events`;
 
-        const eventResponse = await fetch(eventUrl, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${tokenData.access_token}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                eventType: "RentalMail",
-                resource: {
-                    resourceName: "rental-service",
-                    resourceType: "service"
-                },
-                severity,
-                category: "NOTIFICATION",
-                subject,
-                body,
-                tags: safeTags
-            })
-        });
+//         const eventResponse = await fetch(eventUrl, {
+//             method: "POST",
+//             headers: {
+//                 Authorization: `Bearer ${tokenData.access_token}`,
+//                 "Content-Type": "application/json"
+//             },
+//             body: JSON.stringify({
+//                 eventType: "RentalMail",
+//                 resource: {
+//                     resourceName: "rental-service",
+//                     resourceType: "service"
+//                 },
+//                 severity,
+//                 category: "NOTIFICATION",
+//                 subject,
+//                 body,
+//                 tags: safeTags
+//             })
+//         });
 
-        if (!eventResponse.ok) {
-            console.error(
-                "ANS event request failed:",
-                eventResponse.status,
-                (await eventResponse.text()).slice(0, 500)
-            );
-            return false;
-        }
+//         if (!eventResponse.ok) {
+//             console.error(
+//                 "ANS event request failed:",
+//                 eventResponse.status,
+//                 (await eventResponse.text()).slice(0, 500)
+//             );
+//             return false;
+//         }
 
-        console.log("ANS event accepted:", subject);
-        return true;
-    } catch (error) {
-        console.error("ANS notification failed:", error.message);
-        return false;
-    }
-}
+//         console.log("ANS event accepted:", subject);
+//         return true;
+//     } catch (error) {
+//         console.error("ANS notification failed:", error.message);
+//         return false;
+//     }
+// }
 
-// =========================================================
+
+
 // CAP SERVICE HANDLERS
-// =========================================================
 
-module.exports = cds.service.impl(function () {
-    const { SELECT, INSERT, UPDATE } = cds.ql;
+module.exports = cds.service.impl(async function () {
+    // const { SELECT, INSERT, UPDATE } = cds.ql;
+
+    // const conn = await cds.connect.to('ANS-Producer');
+    // console.log("Conn : ", conn);
+    
 
     const {
         Proposals,
@@ -228,218 +212,250 @@ module.exports = cds.service.impl(function () {
     const masterEntities = cds.entities("Master.db") || {};
     const Customers = masterEntities.Customers;
 
-    // =====================================================
     // BUILD RENTAL CONTRACT PDF
-    // =====================================================
 
-    async function buildRentalPdf(contractId) {
-        if (!contractId) {
-            throw new Error("Rental contract ID is required.");
-        }
+    // async function buildRentalPdf(contractId) {
+    //     console.log("Testing");
+        
+    //     if (!contractId) {
+    //         throw new Error("Rental contract ID is required.");
+    //     }
 
-        const contract = await SELECT.one
-            .from(RentalContracts)
-            .where({ ID: contractId });
+    //     const contract = await SELECT.one
+    //         .from(RentalContracts)
+    //         .where({ ID: contractId });
 
-        if (!contract) {
-            throw new Error("Rental contract not found.");
-        }
+    //         console.log("Contract : ", contract);
+            
 
-        if (!contract.customer_ID) {
-            throw new Error(
-                "The rental contract does not have a customer assigned."
-            );
-        }
+    //     if (!contract) {
+    //         throw new Error("Rental contract not found.");
+    //     }
 
-        if (!Customers) {
-            throw new Error(
-                "Customer entity Master.db.Customers could not be found."
-            );
-        }
+    //     if (!contract.customer_ID) {
+    //         throw new Error(
+    //             "The rental contract does not have a customer assigned."
+    //         );
+    //     }
 
-        const customer = await SELECT.one
-            .from(Customers)
-            .where({ ID: contract.customer_ID });
+    //     if (!Customers) {
+    //         throw new Error(
+    //             "Customer entity Master.db.Customers could not be found."
+    //         );
+    //     }
 
-        if (!customer) {
-            throw new Error(
-                "Customer assigned to the contract was not found."
-            );
-        }
+    //     const customer = await SELECT.one
+    //         .from(Customers)
+    //         .where({ ID: contract.customer_ID });
 
-        const allocations = await SELECT
-            .from(RentalAllocations)
-            .where({ rentalContract_ID: contractId });
+    //         console.log("Customer : ", customer);
+            
 
-        const equipmentIds = allocations
-            .map((allocation) => allocation.equipment_ID)
-            .filter(Boolean);
+    //     if (!customer) {
+    //         throw new Error(
+    //             "Customer assigned to the contract was not found."
+    //         );
+    //     }
 
-        const equipment = equipmentIds.length
-            ? await SELECT.from(Rental_Physical_Equipment).where({
-                ID: { in: equipmentIds }
-            })
-            : [];
+    //     const allocations = await SELECT
+    //         .from(RentalAllocations)
+    //         .where({ rentalContract_ID: contractId });
 
-        const equipmentRows = equipment
-            .map(
-                (item) => `
-                    <tr>
-                        <td>${esc(item.equipment_Code)}</td>
-                        <td>${esc(item.equipment_Name)}</td>
-                        <td>${esc(item.serial_Number)}</td>
-                        <td>${esc(item.status)}</td>
-                    </tr>
-                `
-            )
-            .join("");
+    //         console.log("Allocations : ", allocations);
+            
 
-        const html = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <title>Rental Contract</title>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        padding: 30px;
-                        color: #222;
-                    }
-                    table {
-                        border-collapse: collapse;
-                        width: 100%;
-                        margin-top: 12px;
-                    }
-                    th, td {
-                        border: 1px solid #888;
-                        padding: 8px;
-                        text-align: left;
-                    }
-                    th {
-                        background: #f2f2f2;
-                    }
-                </style>
-            </head>
-            <body>
-                <h2>Rental Contract Confirmation</h2>
+    //     const equipmentIds = allocations
+    //         .map((allocation) => allocation.equipment_ID)
+    //         .filter(Boolean);
 
-                <p><strong>Contract Number:</strong>
-                    ${esc(contract.contractNumber)}</p>
+    //         console.log("Equipment Id : ", equipmentIds);
+            
 
-                <p><strong>Customer:</strong>
-                    ${esc(customer.companyName)}</p>
+    //     const equipment = equipmentIds.length
+    //         ? await SELECT.from(Rental_Physical_Equipment).where({
+    //             ID: { in: equipmentIds }
+    //         })
+    //         : [];
 
-                <p><strong>Customer Code:</strong>
-                    ${esc(customer.customerCode)}</p>
+    //     const equipmentRows = equipment
+    //         .map(
+    //             (item) => `
+    //                 <tr>
+    //                     <td>${esc(item.equipment_Code)}</td>
+    //                     <td>${esc(item.equipment_Name)}</td>
+    //                     <td>${esc(item.serial_Number)}</td>
+    //                     <td>${esc(item.status)}</td>
+    //                 </tr>
+    //             `
+    //         )
+    //         .join("");
 
-                <p><strong>Contact Person:</strong>
-                    ${esc(customer.contactPerson)}</p>
+    //     const html = `
+    //         <!DOCTYPE html>
+    //         <html>
+    //         <head>
+    //             <meta charset="UTF-8">
+    //             <title>Rental Contract</title>
+    //             <style>
+    //                 body {
+    //                     font-family: Arial, sans-serif;
+    //                     padding: 30px;
+    //                     color: #222;
+    //                 }
+    //                 table {
+    //                     border-collapse: collapse;
+    //                     width: 100%;
+    //                     margin-top: 12px;
+    //                 }
+    //                 th, td {
+    //                     border: 1px solid #888;
+    //                     padding: 8px;
+    //                     text-align: left;
+    //                 }
+    //                 th {
+    //                     background: #f2f2f2;
+    //                 }
+    //             </style>
+    //         </head>
+    //         <body>
+    //             <h2>Rental Contract Confirmation</h2>
 
-                <p><strong>Contract Date:</strong>
-                    ${esc(contract.contractDate)}</p>
+    //             <p><strong>Contract Number:</strong>
+    //                 ${esc(contract.contractNumber)}</p>
 
-                <p><strong>Rental Period:</strong>
-                    ${esc(contract.startDate)} to ${esc(contract.endDate)}</p>
+    //             <p><strong>Customer:</strong>
+    //                 ${esc(customer.companyName)}</p>
 
-                <p><strong>Total Rental Amount:</strong>
-                    ${esc(contract.totalRentalAmount)}</p>
+    //             <p><strong>Customer Code:</strong>
+    //                 ${esc(customer.customerCode)}</p>
 
-                <h3>Allocated Equipment</h3>
+    //             <p><strong>Contact Person:</strong>
+    //                 ${esc(customer.contactPerson)}</p>
 
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Equipment Code</th>
-                            <th>Equipment Name</th>
-                            <th>Serial Number</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${
-                            equipmentRows ||
-                            '<tr><td colspan="4">No equipment allocated</td></tr>'
-                        }
-                    </tbody>
-                </table>
-            </body>
-            </html>
-        `;
+    //             <p><strong>Contract Date:</strong>
+    //                 ${esc(contract.contractDate)}</p>
 
-        const pdfUrl = process.env.PDFSHIFT_URL;
-        const pdfApiKey = process.env.PDFSHIFT_API_KEY;
+    //             <p><strong>Rental Period:</strong>
+    //                 ${esc(contract.startDate)} to ${esc(contract.endDate)}</p>
 
-        if (!pdfUrl || !pdfApiKey) {
-            throw new Error(
-                "PDFShift configuration is missing. Check PDFSHIFT_URL and PDFSHIFT_API_KEY."
-            );
-        }
+    //             <p><strong>Total Rental Amount:</strong>
+    //                 ${esc(contract.totalRentalAmount)}</p>
 
-        const pdfResponse = await fetch(
-            `${pdfUrl.replace(/\/+$/, "")}/convert/pdf`,
-            {
-                method: "POST",
-                headers: {
-                    "X-API-Key": pdfApiKey,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    source: html,
-                    sandbox: false
-                })
-            }
-        );
+    //             <h3>Allocated Equipment</h3>
 
-        if (!pdfResponse.ok) {
-            const errorText = await pdfResponse.text();
+    //             <table>
+    //                 <thead>
+    //                     <tr>
+    //                         <th>Equipment Code</th>
+    //                         <th>Equipment Name</th>
+    //                         <th>Serial Number</th>
+    //                         <th>Status</th>
+    //                     </tr>
+    //                 </thead>
+    //                 <tbody>
+    //                     ${
+    //                         equipmentRows ||
+    //                         '<tr><td colspan="4">No equipment allocated</td></tr>'
+    //                     }
+    //                 </tbody>
+    //             </table>
+    //         </body>
+    //         </html>
+    //     `;
 
-            console.error(
-                "PDFShift request failed:",
-                pdfResponse.status,
-                errorText.slice(0, 1000)
-            );
+    //     const pdfUrl = process.env.PDFSHIFT_URL;
+    //     const pdfApiKey = process.env.PDFSHIFT_API_KEY;
 
-            throw new Error(
-                `PDFShift PDF generation failed with status ${pdfResponse.status}.`
-            );
-        }
+    //     if (!pdfUrl || !pdfApiKey) {
+    //         throw new Error(
+    //             "PDFShift configuration is missing. Check PDFSHIFT_URL and PDFSHIFT_API_KEY."
+    //         );
+    //     }
 
-        const buffer = Buffer.from(
-            await pdfResponse.arrayBuffer()
-        );
+    //     const pdfResponse = await fetch(
+    //         `${pdfUrl.replace(/\/+$/, "")}/convert/pdf`,
+    //         {
+    //             method: "POST",
+    //             headers: {
+    //                 "X-API-Key": pdfApiKey,
+    //                 "Content-Type": "application/json"
+    //             },
+    //             body: JSON.stringify({
+    //                 source: html,
+    //                 sandbox: false
+    //             })
+    //         }
+    //     );
 
-        if (
-            buffer.length < 5 ||
-            buffer.subarray(0, 5).toString() !== "%PDF-"
-        ) {
-            throw new Error(
-                "PDFShift did not return a valid PDF file."
-            );
-        }
+    //     if (!pdfResponse.ok) {
+    //         const errorText = await pdfResponse.text();
 
-        return { contract, customer, buffer };
-    }
+    //         console.error(
+    //             "PDFShift request failed:",
+    //             pdfResponse.status,
+    //             errorText.slice(0, 1000)
+    //         );
+
+    //         throw new Error(
+    //             `PDFShift PDF generation failed with status ${pdfResponse.status}.`
+    //         );
+    //     }
+
+    //     const buffer = Buffer.from(
+    //         await pdfResponse.arrayBuffer()
+    //     );
+
+    //     if (
+    //         buffer.length < 5 ||
+    //         buffer.subarray(0, 5).toString() !== "%PDF-"
+    //     ) {
+    //         throw new Error(
+    //             "PDFShift did not return a valid PDF file."
+    //         );
+    //     }
+
+    //     return { contract, customer, buffer };
+    // }
 
     // =====================================================
     // GENERATE RENTAL PDF
     // =====================================================
 
-    this.on("generateRentalPdf", async (req) => {
-        const { rentalContract_ID } = req.data;
+    // this.on("generateRentalPdf", async (req) => {
+    //     const { rentalContract_ID } = req.data;
 
-        if (!rentalContract_ID) {
-            return req.error(400, "Rental contract ID is required.");
-        }
+    //     if (!rentalContract_ID) {
+    //         return req.error(400, "Rental contract ID is required.");
+    //     }
 
-        try {
-            const { buffer } = await buildRentalPdf(rentalContract_ID);
-            return buffer.toString("base64");
-        } catch (error) {
-            console.error("PDF generation failed:", error.message);
-            return req.error(502, "Rental contract PDF generation failed.");
-        }
-    });
+    //     try {
+    //         const { buffer } = await buildRentalPdf(rentalContract_ID);
+    //         console.log("Buffer : ", buffer);
+            
+    //         return buffer.toString("base64");
+            
+    //     } catch (error) {
+    //         console.error("PDF generation failed:", error.message);
+    //         return req.error(502, "Rental contract PDF generation failed.");
+    //     }
+
+
+    // });
+
+    // function esc(value) {
+    //     if (value === null || value === undefined) {
+    //         return "";
+    //     }
+
+    //     return String(value)
+    //         .replace(/&/g, "&amp;")
+    //         .replace(/</g, "&lt;")
+    //         .replace(/>/g, "&gt;")
+    //         .replace(/"/g, "&quot;")
+    //         .replace(/'/g, "&#39;");
+    // };
+
+    
 
     // =====================================================
     // SEND RENTAL CONFIRMATION
@@ -553,12 +569,12 @@ module.exports = cds.service.impl(function () {
             return req.error(404, "Proposal not found.");
         }
 
-        if (normalizeStatus(proposal.proposalStatus) !== "APPROVED") {
-            return req.error(
-                400,
-                "A rental contract can be created only for an approved proposal."
-            );
-        }
+        // if (normalizeStatus(proposal.proposalStatus) !== "APPROVED") {
+        //     return req.error(
+        //         400,
+        //         "A rental contract can be created only for an approved proposal."
+        //     );
+        // }
 
         const customerId = proposal.customer_ID;
 

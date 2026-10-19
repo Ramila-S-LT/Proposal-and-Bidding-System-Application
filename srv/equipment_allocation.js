@@ -1,18 +1,23 @@
-
 const cds = require("@sap/cds");
+const ax = require('axios');
+require('dotenv').config()
+const https = require('https');
 
-
-module.exports = cds.service.impl(function () {
+module.exports = cds.service.impl(async function () {
     console.log("equipment_allocation.js loaded");
 
     const { SELECT, INSERT, UPDATE } = cds.ql;
+    
+    const conn = await cds.connect.to('ANS-Producer');
+    console.log("Conn : ", conn);
 
     const {
         Proposals,
         ProposalItems,
         RentalContracts,
         RentalAllocations,
-        Rental_Physical_Equipment
+        Rental_Physical_Equipment,
+        Customers
     } = this.entities;
 
     // -----------------------------------------------------
@@ -54,12 +59,12 @@ module.exports = cds.service.impl(function () {
             return req.error(404, "Approved proposal not found.");
         }
 
-        if (normalizeStatus(proposal.proposalStatus) !== "APPROVED") {
-            return req.error(
-                400,
-                "Items can be retrieved only for approved proposals."
-            );
-        }
+        // if (normalizeStatus(proposal.proposalStatus) !== "APPROVED") {
+        //     return req.error(
+        //         400,
+        //         "Items can be retrieved only for approved proposals."
+        //     );
+        // }
 
         return SELECT.from(ProposalItems).where({ proposals_ID: proposal_ID });
     });
@@ -83,12 +88,12 @@ module.exports = cds.service.impl(function () {
             return req.error(404, "Approved proposal not found.");
         }
 
-        if (normalizeStatus(proposal.proposalStatus) !== "APPROVED") {
-            return req.error(
-                400,
-                "Equipment can be selected only for approved proposals."
-            );
-        }
+        // if (normalizeStatus(proposal.proposalStatus) !== "APPROVED") {
+        //     return req.error(
+        //         400,
+        //         "Equipment can be selected only for approved proposals."
+        //     );
+        // }
 
         // Get the products requested by this proposal.
         const items = await SELECT
@@ -157,6 +162,314 @@ module.exports = cds.service.impl(function () {
     // ALLOCATE EQUIPMENT
     // =====================================================
 
+    async function generateToken(){
+        console.log("Token Function");
+        console.log("Client ID : ", process.env.client_id);
+        console.log("Clinet Secret : ", process.env.client_secret);
+        
+        const tokenResponse = await conn.send({
+            method: "POST",
+            path: '/oauth/token',
+            headers : {
+                "Content-Type" : "application/x-www-form-urlencoded"
+            },
+            data: "grant_type=client_credentials"
+        });
+
+        const token = tokenResponse.access_token;
+        console.log("Token  : ", token);
+        
+        return token;
+    };
+
+    async function notifyCustomerVerification(customer, token, pdf) {
+            console.log("Token : ", token);
+            console.log("Customer : ", customer);
+            console.log("Customer Email : ", customer.customerEmail);
+            console.log("PDF : ", pdf);
+            
+            
+        
+            console.log("Customer Verification notification");
+            // console.log("Customer ID : ", customer.ID);
+            // console.log("Customer Email : ", customer.customerEmail);
+    
+            await ax.post(
+                'https://clm-sl-ans-live-ans-service-api.cfapps.us10.hana.ondemand.com/cf/producer/v1/resource-events',
+                {
+                    eventType : "Rental_Contract_Allocate",
+                    severity : "INFO",
+                    subject: "Customer Verification Successful",
+                    body: `Dear,\n\nGreetings from GMMCO!\n\nWe are pleased to inform you that your company registration has been successfully verified and approved.\n\nRegistered Email: \nVerification Status: Approved\n\nThank you for choosing GMMCO.\n\nBest regards,\nGMMCO Team`,
+                    category : "NOTIFICATION",
+                    tags : {
+                        customerEmail : customer.customerEmail
+                    },
+                    pdf : pdf,
+                    resource : {
+                        resourceName : "GMMCOApplication",
+                        resourceType : "Application",
+                        resourceInstance : "1",
+                        tags : {
+                            appliation : "Proposal-Creation"
+                        }
+                    }
+                },
+    
+                {
+                    headers : {
+                        Authorization : `Bearer ${token}`,
+                        "Content-Type" : "application/json"
+                    },
+                    httpsAgent : new https.Agent({
+                        rejectUnauthorized: false
+                    }),
+                    proxy : false
+                }
+            );
+    
+            console.log("Customer Verification event sent successfully");
+            
+        }
+
+        async function generatePDF(id) {
+            // const { rentalContract_ID } = req.data;
+
+            if (!id) {
+                return req.error(400, "Rental contract ID is required.");
+            }
+
+            try {
+                const { buffer } = await buildRentalPdf(id);
+                console.log("Buffer : ", buffer);
+                
+                return buffer.toString("base64");
+                
+            } catch (error) {
+                console.error("PDF generation failed:", error.message);
+                return req.error(502, "Rental contract PDF generation failed.");
+            
+            }
+        };
+
+        async function buildRentalPdf(contractId) {
+            console.log("Testing");
+            
+            if (!contractId) {
+                throw new Error("Rental contract ID is required.");
+            }
+
+            const contract = await SELECT.one
+                .from(RentalContracts)
+                .where({ ID: contractId });
+
+                console.log("Contract : ", contract);
+                
+
+            if (!contract) {
+                throw new Error("Rental contract not found.");
+            }
+
+            if (!contract.customer_ID) {
+                throw new Error(
+                    "The rental contract does not have a customer assigned."
+                );
+            }
+
+            if (!Customers) {
+                throw new Error(
+                    "Customer entity Master.db.Customers could not be found."
+                );
+            }
+
+            const customer = await SELECT.one
+                .from(Customers)
+                .where({ ID: contract.customer_ID });
+
+                console.log("Customer : ", customer);
+                
+
+            if (!customer) {
+                throw new Error(
+                    "Customer assigned to the contract was not found."
+                );
+            }
+
+            const allocations = await SELECT
+                .from(RentalAllocations)
+                .where({ rentalContract_ID: contractId });
+
+                console.log("Allocations : ", allocations);
+                
+
+            const equipmentIds = allocations
+                .map((allocation) => allocation.equipment_ID)
+                .filter(Boolean);
+
+                console.log("Equipment Id : ", equipmentIds);
+                
+
+            const equipment = equipmentIds.length
+                ? await SELECT.from(Rental_Physical_Equipment).where({
+                    ID: { in: equipmentIds }
+                })
+                : [];
+
+            const equipmentRows = equipment
+                .map(
+                    (item) => `
+                        <tr>
+                            <td>${esc(item.equipment_Code)}</td>
+                            <td>${esc(item.equipment_Name)}</td>
+                            <td>${esc(item.serial_Number)}</td>
+                            <td>${esc(item.status)}</td>
+                        </tr>
+                    `
+                )
+                .join("");
+
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Rental Contract</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            padding: 30px;
+                            color: #222;
+                        }
+                        table {
+                            border-collapse: collapse;
+                            width: 100%;
+                            margin-top: 12px;
+                        }
+                        th, td {
+                            border: 1px solid #888;
+                            padding: 8px;
+                            text-align: left;
+                        }
+                        th {
+                            background: #f2f2f2;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h2>Rental Contract Confirmation</h2>
+
+                    <p><strong>Contract Number:</strong>
+                        ${esc(contract.contractNumber)}</p>
+
+                    <p><strong>Customer:</strong>
+                        ${esc(customer.companyName)}</p>
+
+                    <p><strong>Customer Code:</strong>
+                        ${esc(customer.customerCode)}</p>
+
+                    <p><strong>Contact Person:</strong>
+                        ${esc(customer.contactPerson)}</p>
+
+                    <p><strong>Contract Date:</strong>
+                        ${esc(contract.contractDate)}</p>
+
+                    <p><strong>Rental Period:</strong>
+                        ${esc(contract.startDate)} to ${esc(contract.endDate)}</p>
+
+                    <p><strong>Total Rental Amount:</strong>
+                        ${esc(contract.totalRentalAmount)}</p>
+
+                    <h3>Allocated Equipment</h3>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Equipment Code</th>
+                                <th>Equipment Name</th>
+                                <th>Serial Number</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${
+                                equipmentRows ||
+                                '<tr><td colspan="4">No equipment allocated</td></tr>'
+                            }
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `;
+
+            const pdfUrl = process.env.PDFSHIFT_URL;
+            const pdfApiKey = process.env.PDFSHIFT_API_KEY;
+
+            if (!pdfUrl || !pdfApiKey) {
+                throw new Error(
+                    "PDFShift configuration is missing. Check PDFSHIFT_URL and PDFSHIFT_API_KEY."
+                );
+            }
+
+            const pdfResponse = await fetch(
+                `${pdfUrl.replace(/\/+$/, "")}/convert/pdf`,
+                {
+                    method: "POST",
+                    headers: {
+                        "X-API-Key": pdfApiKey,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        source: html,
+                        sandbox: false
+                    })
+                }
+            );
+
+            if (!pdfResponse.ok) {
+                const errorText = await pdfResponse.text();
+
+                console.error(
+                    "PDFShift request failed:",
+                    pdfResponse.status,
+                    errorText.slice(0, 1000)
+                );
+
+                throw new Error(
+                    `PDFShift PDF generation failed with status ${pdfResponse.status}.`
+                );
+            }
+
+            const buffer = Buffer.from(
+                await pdfResponse.arrayBuffer()
+            );
+
+            if (
+                buffer.length < 5 ||
+                buffer.subarray(0, 5).toString() !== "%PDF-"
+            ) {
+                throw new Error(
+                    "PDFShift did not return a valid PDF file."
+                );
+            }
+
+            return { contract, customer, buffer };
+    }
+
+    function esc(value) {
+        if (value === null || value === undefined) {
+            return "";
+        }
+
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    };
+
+
+
     this.on("allocationEquipment", async (req) => {
         const {
             proposal_ID,
@@ -208,17 +521,22 @@ module.exports = cds.service.impl(function () {
         const proposal = await SELECT.one
             .from(Proposals)
             .where({ ID: proposal_ID });
+            console.log("Proposal Data : ", proposal);
 
+        const customer = await SELECT.one.from('Customers').where({ID : proposal.customer_ID});
+        console.log("Customer ID : ", customer);
+        
+        
         if (!proposal) {
             return req.error(404, "Proposal not found.");
         }
 
-        if (normalizeStatus(proposal.proposalStatus) !== "APPROVED") {
-            return req.error(
-                400,
-                "Equipment can be allocated only to an approved proposal."
-            );
-        }
+        // if (normalizeStatus(proposal.proposalStatus) !== "APPROVED") {
+        //     return req.error(
+        //         400,
+        //         "Equipment can be allocated only to an approved proposal."
+        //     );
+        // }
 
         // 4. Check the rental contract.
         const contract = await SELECT.one
@@ -229,12 +547,12 @@ module.exports = cds.service.impl(function () {
             return req.error(404, "Rental contract not found.");
         }
 
-        if (normalizeStatus(contract.contractStatus) !== "ACTIVE") {
-            return req.error(
-                400,
-                "Equipment can be allocated only to an active rental contract."
-            );
-        }
+        // if (normalizeStatus(contract.contractStatus) !== "ACTIVE") {
+        //     return req.error(
+        //         400,
+        //         "Equipment can be allocated only to an active rental contract."
+        //     );
+        // }
 
         // 5. Ensure the contract belongs to the selected proposal.
         if (String(contract.proposal_ID) !== String(proposal_ID)) {
@@ -267,29 +585,29 @@ module.exports = cds.service.impl(function () {
             return req.error(404, "Selected equipment not found.");
         }
 
-        if (normalizeStatus(equipment.status) !== "AVAILABLE") {
-            return req.error(
-                400,
-                "Selected equipment is no longer available."
-            );
-        }
+        // if (normalizeStatus(equipment.status) !== "AVAILABLE") {
+        //     return req.error(
+        //         400,
+        //         "Selected equipment is no longer available."
+        //     );
+        // }
 
         // 8. Verify that the equipment product was requested
         //    in this proposal.
-        const matchingItem = await SELECT.one
-            .from(ProposalItems)
-            .columns("ID")
-            .where({
-                proposals_ID: proposal_ID,
-                product_ID: equipment.product_ref_ID
-            });
+        // const matchingItem = await SELECT.one
+        //     .from(ProposalItems)
+        //     .columns("ID")
+        //     .where({
+        //         proposals_ID: proposal_ID,
+        //         product_ID: equipment.product_ref_ID
+        //     });
 
-        if (!matchingItem) {
-            return req.error(
-                400,
-                "Selected equipment does not match any product requested in this proposal."
-            );
-        }
+        // if (!matchingItem) {
+        //     return req.error(
+        //         400,
+        //         "Selected equipment does not match any product requested in this proposal."
+        //     );
+        // }
 
         // 9. Create the allocation.
         const allocationId = cds.utils.uuid();
@@ -321,14 +639,22 @@ module.exports = cds.service.impl(function () {
                 .from(Rental_Physical_Equipment)
                 .where({ ID: equipment_ID });
 
-            if (
-                !updatedEquipment ||
-                normalizeStatus(updatedEquipment.status) !== "AT_CUSTOMER"
-            ) {
-                throw new Error(
-                    "Equipment status could not be updated. Please check the allocation."
-                );
-            }
+            // if (
+            //     !updatedEquipment ||
+            //     normalizeStatus(updatedEquipment.status) !== "AT_CUSTOMER"
+            // ) {
+            //     throw new Error(
+            //         "Equipment status could not be updated. Please check the allocation."
+            //     );
+            // }
+
+            const token = await generateToken();
+            console.log("Token");
+
+            const pdf = await generatePDF(rentalContract_ID);
+            console.log("PDF : ", pdf);
+
+            const result = await notifyCustomerVerification(customer, token, pdf)
 
             return "Equipment allocated successfully.";
         } catch (error) {

@@ -76,7 +76,17 @@ module.exports = cds.service.impl(async function () {
             return req.reject(401, 'Invalid Username or Password'); 
         }
  
-        return await SELECT.from(Proposals).where({ customer_ID: user.ID });
+        const proposal =  await SELECT.from(Proposals).where({ customer_ID: user.ID });
+
+        return { customer : {
+            ID: user.ID,
+            username : user.username,
+            status : user.status,
+            companyName : user.companyName,
+            companyType : user.companyType
+        },
+        proposal
+        };
     });
  
     // ---------- Proposals: CREATE ----------
