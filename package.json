@@ -35,10 +35,10 @@
           "apiKey": "sk_274affaa0473530fe4d25c1e7b4b4208812acb01"
         }
       },
-      "ANS-Producer" : {
-        "kind" : "rest",
-        "credentials" : {
-          "destination" : "ANS-Producer"
+      "ANS-Producer": {
+        "kind": "rest",
+        "credentials": {
+          "destination": "ANS-Producer"
         }
       },
       "[production]": {
@@ -46,7 +46,7 @@
           "kind": "hana"
         },
         "auth": {
-          "kind": "mocked"
+          "kind": "dummy"
         }
       }
     }

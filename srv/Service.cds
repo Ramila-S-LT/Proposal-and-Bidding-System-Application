@@ -69,7 +69,33 @@ service customerapi {
     //     grant : ['EXECUTE'],
     //     to:['Users']
     // }])
-    function login(username : String, password : String) returns array of String;
+    function login(username : String, password : String) returns LoginResponse;
+    
+    type LoginResponse {
+        customer : CustomerLoginInfo;
+        proposals : ProposalLoginInfo
+    }
+
+    type ProposalLoginInfo {
+        proposalNumber   : String;
+        proposalDate     : Date;
+        proposalType     : String;
+        // RENTAL, SALES
+        proposalStatus   : String default 'Pending';
+        // DRAFT, SUBMITTED, APPROVED, REJECTED
+        totalAmount      : Decimal;
+        negotiateAmount  : Decimal;
+        customerRemarks  : String;
+        submittedAt      : Timestamp;
+        customer_ID        : UUID;
+    }
+    type CustomerLoginInfo {
+        ID : UUID;
+        username : String;
+        status : String;
+        companyName : String;
+        companyType : String;
+    } 
     
     @readonly
     // @(restrict : [{ grant : ['READ'], to : ['Users'] }])
@@ -151,6 +177,13 @@ service salesapi {
     @cds.redirection.target
     entity Proposals as projection on db.Proposals;
 
+     @readonly
+    entity Customers as projection on db.Customers {
+        key ID,
+        customerCode,
+        companyName
+    };
+
     entity ProposalItems as projection on db.ProposalItems;
 
    @cds.redirection.target
@@ -202,23 +235,26 @@ service salesapi {
     )
         returns String;
 
-    action completeRentalContract(
-        contract_ID : UUID
-    )
-        returns String;
+    // action sendMail() returns String;
+
+    // action completeRentalContract(
+    //     contract_ID : UUID
+    // )
+    //     returns String;
     
     // notification
-action sendRentalConfirmation(rentalContract_ID : UUID) returns {
-    success : Boolean;
-    message : String;
-};
+
+// action sendRentalConfirmation(rentalContract_ID : UUID) returns {
+//     success : Boolean;
+//     message : String;
+// };
 
 
-action generateRentalPdf(rentalContract_ID : UUID) returns LargeString;
+// action generateRentalPdf(rentalContract_ID : UUID) returns LargeString;
 
-action sendRentalPdfMail(rentalContract_ID : UUID) returns {
-  success : Boolean;
-  message : String;
-};
+// action sendRentalPdfMail(rentalContract_ID : UUID) returns {
+//   success : Boolean;
+//   message : String;
+// }; 
 
 }

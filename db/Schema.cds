@@ -5,7 +5,7 @@ using { cuid, managed } from '@sap/cds/common';
 
 //Master Data
 
-
+@cds.persistence.exists
 entity Product : cuid {
     product_Type : String;  //identifies what type of product it is ...like Road roaler,JCB
     product_Code : String;  //unic busiess code used to identify the product  
@@ -27,6 +27,7 @@ entity Product : cuid {
  
  
 
+@cds.persistence.exists
 entity Rental_Physical_Equipment : cuid {
     equipment_Code : String;
     equipment_Name : String;
@@ -48,7 +49,7 @@ entity Rental_Physical_Equipment : cuid {
  
 // }
  
-
+@cds.persistence.exists
 entity Machine_Operator : cuid {
     operator_Code       : String;
     operator_Name       : String;
@@ -65,6 +66,7 @@ entity Machine_Operator : cuid {
  
  
 
+@cds.persistence.exists
 entity Spare_Parts : cuid {
     Part_Number         : String;
     part_Name           : String;
@@ -78,6 +80,7 @@ entity Spare_Parts : cuid {
 }
  
 
+@cds.persistence.exists
 entity Attachment : cuid {
     attachment_Code : String;
     attachment_Name : String;
@@ -104,18 +107,22 @@ entity Attachment : cuid {
  
  
 
+@cds.persistence.exists
 entity Prod_Attach {
     key product_ref : Association to Product;
     key attachment_ref : Association to Attachment;
 }
  
 
+
+@cds.persistence.exists
 entity Spare_Product {
     key spare_ref : Association to Spare_Parts;
     key product_ref : Association to Product;
 }
  
 
+@cds.persistence.exists
 entity Prod_Operator {
     key Prod_ref : Association to Product;
     key Machine_ref : Association to Machine_Operator;
@@ -125,6 +132,7 @@ entity Prod_Operator {
 //Transactional Data
 
 
+@cds.persistence.exists
 entity Customers : cuid, managed {
  
     customerCode     : String;
@@ -157,6 +165,7 @@ entity Customers : cuid, managed {
  
  
 
+@cds.persistence.exists
 entity Proposals : cuid, managed {
  
     proposalNumber   : String;
@@ -190,6 +199,7 @@ entity Proposals : cuid, managed {
 }
  
  
+@cds.persistence.exists
 entity ProposalItems : cuid {
  
     quantity         : Integer;
@@ -221,6 +231,7 @@ entity ProposalItems : cuid {
 // }
 
 
+@cds.persistence.exists
 entity ManagerApprovals : cuid, managed {
  
     reviewDate       : Date;
@@ -237,6 +248,7 @@ entity ManagerApprovals : cuid, managed {
  
 
 
+@cds.persistence.exists
 entity RentalContracts : cuid, managed {
  
     @assert.unique: {contractNumber:[contractNumber]} 
@@ -262,6 +274,7 @@ entity RentalContracts : cuid, managed {
  
  
 
+@cds.persistence.exists
 entity RentalAllocations : cuid, managed {
  
     allocationNumber     : String;
