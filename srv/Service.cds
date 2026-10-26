@@ -38,6 +38,8 @@ service customerapi {
     // }])
     entity Proposals as projection on db.Proposals;
 
+    entity RentalContract as projection on db.RentalContracts;
+
 
     // @(restrict : [{
     //     grant : ['READ', 'CREATE', 'UPDATE'],
@@ -97,11 +99,12 @@ service customerapi {
         companyType : String;
     } 
     
-    @readonly
+
     // @(restrict : [{ grant : ['READ'], to : ['Users'] }])
-    entity Product as projection on db.Product {
-        ID, product_Code, product_Name, basePrice
-    };
+  @readonly
+entity Product as projection on db.Product {
+    ID, product_Code, product_Name, product_Group, basePrice
+};
 
 
 //  checking the code
@@ -133,12 +136,20 @@ service managerapi {
         status
     };
 
-    entity ProposalItems as projection on db.ProposalItems;
+    entity ProposalItems as projection on db.ProposalItems {
+        *,
+        product : redirected to Products
+    };
+
+    entity Products as projection on db.Product {
+        ID,
+        product_Name
+    };    
     
-    // entity Products as projection on db.Product;
 
     entity ManagerApprovals as projection on db.ManagerApprovals;
     function availabilityDetails(ID : UUID) returns array of AvailabilityDetail;
+
 
     // function availabilityDetails(ID:UUID) returns array of String;
 
@@ -162,7 +173,10 @@ service managerapi {
     entity CustomerCount as projection on ViewData.CustomerData;
     entity EquipmetCount as projection on ViewData.EquipmentStatusCount;
     entity EquipmentCountByProducts as projection on ViewData.EquipmentCOuntByProd;
-        
+
+
+    @cds.redirection.target: false
+    entity MonthlyRevenue as projection on ViewData.MonthlyRevenue;
     // entity UnderReviewCount as projection on ViewData.UnderReview;
     // entity Pending as projection on ViewData.Pending;
     // entity Rejected as projection on ViewData.Rejected;
@@ -177,11 +191,15 @@ service salesapi {
     @cds.redirection.target
     entity Proposals as projection on db.Proposals;
 
-     @readonly
+    @readonly
+    entity Products as projection on db.Product;
+
+    @readonly
     entity Customers as projection on db.Customers {
         key ID,
         customerCode,
-        companyName
+        companyName,
+        customerEmail
     };
 
     entity ProposalItems as projection on db.ProposalItems;
@@ -234,6 +252,13 @@ service salesapi {
         rentalContract_ID : UUID
     )
         returns String;
+
+    type dates{
+        start_Date : Date;
+        end_Date : Date
+    }
+
+    action checkRental() returns many dates;
 
     // action sendMail() returns String;
 

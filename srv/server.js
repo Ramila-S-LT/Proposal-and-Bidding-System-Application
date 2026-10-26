@@ -48,6 +48,10 @@ cds.on("bootstrap", (app) => {
         console.log("Body : ", req.body);
 
         const {subject, body, tags} = req.body || {};
+        console.log("Tags : ", tags.pdf);
+        console.log("Base64 length : ", tags?.pdf?.length);
+        
+        
         const to = tags?.customerEmail;
 
         if(!to) {
@@ -55,6 +59,15 @@ cds.on("bootstrap", (app) => {
         }
 
         try {
+            let pdfBuffer = null;
+
+            if(tags.pdf){
+                pdfBuffer = Buffer.from(tags.pdf, "base64");
+                console.log("Length : ", pdfBuffer.length);
+            }
+
+            
+
             const transporter = nodemailer.createTransport({
                 host: process.env.SMTP_HOST,
                 port: Number(process.env.SMTP_PORT || 587),
@@ -72,11 +85,11 @@ cds.on("bootstrap", (app) => {
                 subject: subject || "Customer Verification Successful",
                 text : body || "You accounst is verified successfully.",
 
-                attachments : pdf ? [
+                attachments : pdfBuffer ? [
                     {
                         filename : "Rental_Contract.pdf",
-                        content : Buffer.from(pdf, "base64"),
-                        contentType : "application.pdf"
+                        content : pdfBuffer,
+                        contentType : "application/pdf"
                     }
                 ] : []
             });
@@ -86,11 +99,19 @@ cds.on("bootstrap", (app) => {
             
         }catch(error) {
             console.error("Email Sending failed : ", error.message);
+            console.error("Stack : ", error.stack);
+            console.error("Code : ", error.code);
+            console.error("Command : ", error.command);
+            
             return res.status(500).send("Email sending failed");
         }
+    
+    });
 
-        
-    })
+    
+
 })
 
 module.exports = cds.server;
+
+
