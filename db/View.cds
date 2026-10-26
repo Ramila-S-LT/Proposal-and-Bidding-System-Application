@@ -25,6 +25,13 @@ entity EquipmentCOuntByProd as select from view.Product as P left join view.Rent
 } group by P.ID, P.product_Name;
 
 
+entity MonthlyRevenue as select from view.RentalContracts as RC {
+    key year(RC.contractDate) as year : Integer,
+    key month(RC.contractDate) as month : Integer,
+    sum(RC.totalRentalAmount) as revenue : Decimal(15,2)
+} group by year(RC.contractDate), month(contractDate);
+
+
 
 
 // entity UnderReview as select from view.Proposals as prop {

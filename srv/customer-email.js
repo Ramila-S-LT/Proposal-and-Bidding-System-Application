@@ -18,7 +18,7 @@ async function sendCustomerVerificationEmail(customer) {
     await transporter.sendMail({
         from: process.env.MAIL_FROM,
         to: customer.email,
-        subject: "GMMCO Account Verification Sucessful",
+        subject: "GMMCO Account Verification Successful",
         text: "Hello customer",
 
         

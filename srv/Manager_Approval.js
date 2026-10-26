@@ -398,9 +398,6 @@ module.exports = cds.service.impl(async function() {
 
         console.log("Customer Verification event sent successfully");
         
-        
-        
-        
     }
 
     this.on('customerReject', async(req, res) => {
