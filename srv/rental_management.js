@@ -105,6 +105,189 @@ module.exports = cds.service.impl(async function () {
     // SEND RENTAL CONFIRMATION
     // Sends one email with the rental contract PDF attached.
     // Call this after all equipment allocations succeed.
+
+    function esc(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+    async function buildRentalPdf(contractId) {
+        if (!contractId) {
+            throw new Error("Rental contract ID is required.");
+        }
+
+        const contract = await SELECT.one
+            .from(RentalContracts)
+            .where({ ID: contractId });
+
+            console.log("Contract : ", contract);
+            
+        if (!contract) {
+            throw new Error("Rental contract not found.");
+        }
+
+        if (!Customers) {
+            throw new Error(
+                "Customer entity Master.db.Customers could not be found."
+            );
+        }
+
+        const customer = await SELECT.one
+            .from(Customers)
+            .where({ ID: contract.customer_ID });
+            console.log("Customers : ", customer);
+            
+
+        if (!customer) {
+            throw new Error("Customer assigned to the contract was not found.");
+        }
+
+        const allocations = await SELECT
+            .from(RentalAllocations)
+            .where({ rentalContract_ID: contractId });
+
+            console.log("Allocations : ", allocations);
+            
+
+        const equipmentIds = allocations
+            .map((allocation) => allocation.equipment_ID)
+            .filter(Boolean);
+
+        const equipment = equipmentIds.length
+            ? await SELECT.from(Rental_Physical_Equipment).where({
+                  ID: { in: equipmentIds }
+              })
+            : [];
+
+        const equipmentRows = equipment
+            .map(
+                (item) => `
+                    <tr>
+                        <td>${esc(item.equipment_Code)}</td>
+                        <td>${esc(item.equipment_Name)}</td>
+                        <td>${esc(item.serial_Number)}</td>
+                        <td>${esc(item.status)}</td>
+                    </tr>
+                `
+            )
+            .join("");
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Rental Contract</title>
+            </head>
+            <body style="font-family:Arial,sans-serif;padding:30px;color:#222">
+                <h2>Rental Contract Confirmation</h2>
+
+                <p><strong>Contract Number:</strong>
+                    ${esc(contract.contractNumber)}</p>
+
+                <p><strong>Customer:</strong>
+                    ${esc(customer.companyName)}</p>
+
+                <p><strong>Customer Code:</strong>
+                    ${esc(customer.customerCode)}</p>
+
+                <p><strong>Contact Person:</strong>
+                    ${esc(customer.contactPerson)}</p>
+
+                <p><strong>Contract Date:</strong>
+                    ${esc(contract.contractDate)}</p>
+
+                <p><strong>Rental Period:</strong>
+                    ${esc(contract.startDate)} to ${esc(contract.endDate)}</p>
+
+                <p><strong>Total Rental Amount:</strong>
+                    ${esc(contract.totalRentalAmount)}</p>
+
+                <h3>Allocated Equipment</h3>
+
+                <table border="1" cellpadding="8"
+                    style="border-collapse:collapse;width:100%">
+                    <thead>
+                        <tr>
+                            <th>Equipment Code</th>
+                            <th>Equipment Name</th>
+                            <th>Serial Number</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${
+                            equipmentRows ||
+                            '<tr><td colspan="4">No equipment allocated</td></tr>'
+                        }
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        const pdfConfig = cds.env.requires?.PDFSHIFT?.credentials;
+
+        if (!pdfConfig?.url || !pdfConfig?.apiKey) {
+            throw new Error(
+                "PDFShift configuration is missing. Check your application configuration."
+            );
+        }
+
+        const pdfResponse = await fetch(
+            `${pdfConfig.url.replace(/\/+$/, "")}/convert/pdf`,
+            {
+                method: "POST",
+                headers: {
+                    "X-API-Key": pdfConfig.apiKey,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    source: html,
+                    sandbox: true
+                })
+            }
+        );
+
+        if (!pdfResponse.ok) {
+            throw new Error(`PDFShift failed: ${await pdfResponse.text()}`);
+        }
+
+        const buffer = Buffer.from(await pdfResponse.arrayBuffer());
+
+        console.log("Buffer : ", buffer);
+        
+
+        return { contract, customer, buffer };
+    }
+
+
+    this.on("generateRentalPdf", async (req) => {
+        const { rentalContract_ID } = req.data;
+
+        if (!rentalContract_ID) {
+            return req.error(400, "Rental contract ID is required.");
+        }
+
+        try {
+            const { buffer } = await buildRentalPdf(rentalContract_ID);
+            return buffer.toString("base64");
+            
+        } catch (error) {
+            console.error("PDF generation failed:", error.message);
+            return req.error(502, error.message);
+        }
+    });
+
+    
    
 
     this.on('checkRental', async (req, res) => {
