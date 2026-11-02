@@ -275,11 +275,11 @@ service salesapi {
 // };
 
 
-// action generateRentalPdf(rentalContract_ID : UUID) returns LargeString;
+action generateRentalPdf(rentalContract_ID : UUID) returns LargeString;
 
-// action sendRentalPdfMail(rentalContract_ID : UUID) returns {
-//   success : Boolean;
-//   message : String;
-// }; 
+action sendRentalPdfMail(rentalContract_ID : UUID) returns {
+  success : Boolean;
+  message : String;
+}; 
 
 }

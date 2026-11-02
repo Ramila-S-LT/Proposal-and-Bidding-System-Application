@@ -19,6 +19,226 @@ module.exports = cds.service.impl(async function () {
         Customers
     } = this.entities;
     
+       function esc(value) {
+            if (value === null || value === undefined) {
+                return "";
+            }
+
+            return String(value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+         async function notifyCustomerVerification(custo, token, resultPDF, contract) {
+                    console.log("Token : ", token);
+                    console.log("ID : ", custo);
+                    console.log("PDf : ", resultPDF);
+                    console.log("Contract : ", contract);
+                    
+                    
+                    // console.log("Email  inside customer : ", resultDate);
+                    
+            
+                    await axios.post(
+                        'https://clm-sl-ans-live-ans-service-api.cfapps.us10.hana.ondemand.com/cf/producer/v1/resource-events',
+                        {
+                            eventType : "Due_Remainder",
+                            severity : "INFO",
+                            subject: "Rental Contract and Equipment Allocation Confirmation",
+                            body: `Dear ${custo.companyName}, \n\nGreeting from GMMCO! \nWe are pleased to inform you that your rental contract has been successfully created and the requested equipment has been allocated.\n\nPlease find the Rental Contract attached to this email for your reference.\n\nRental Details\n\nContract Number : ${contract.contractNumber}\nRental Start Date : ${contract.startDate}\nRental End Date : ${contract.endDate}\n\nPlease revies the attached rental contract and keep it for your records. Thank you for choosing GMMCO.\n\nBest Regards, \nGMMCO Team`,
+                            category : "NOTIFICATION",
+                            tags : {
+                                customerEmail : custo.customerEmail,
+                                pdf : resultPDF
+                            },
+                            resource : {
+                                resourceName : "GMMCOApplication",
+                                resourceType : "Application",
+                                resourceInstance : "1",
+                                tags : {
+                                    appliation : "Proposal-Creation"
+                                }
+                            }
+                        },
+            
+                        {
+                            headers : {
+                                Authorization : `Bearer ${token}`,
+                                "Content-Type" : "application/json"
+                            },
+                            httpsAgent : new https.Agent({
+                                rejectUnauthorized: false
+                            }),
+                            proxy : false
+                        }
+                    );
+            
+                    console.log("Customer Verification event sent successfully");
+                    
+                }
+
+        async function generateToken(){
+            console.log("Token Function");
+            console.log("Client ID : ", process.env.client_id);
+            console.log("Clinet Secret : ", process.env.client_secret);
+            
+            const tokenResponse = await conn.send({
+                method: "POST",
+                path: '/oauth/token',
+                headers : {
+                    "Content-Type" : "application/x-www-form-urlencoded"
+                },
+                data: "grant_type=client_credentials"
+            });
+
+            const token = tokenResponse.access_token;
+            console.log("Token  : ", token);
+            
+            return token;
+        };
+
+
+
+     async function buildRentalPdf(contractId) {
+            if (!contractId) {
+                throw new Error("Rental contract ID is required.");
+            }
+    
+            const contract = await SELECT.one
+                .from(RentalContracts)
+                .where({ ID: contractId });
+    
+            if (!contract) {
+                throw new Error("Rental contract not found.");
+            }
+    
+            if (!Customers) {
+                throw new Error(
+                    "Customer entity Master.db.Customers could not be found."
+                );
+            }
+    
+            const customer = await SELECT.one
+                .from(Customers)
+                .where({ ID: contract.customer_ID });
+    
+            if (!customer) {
+                throw new Error("Customer assigned to the contract was not found.");
+            }
+    
+            const allocations = await SELECT
+                .from(RentalAllocations)
+                .where({ rentalContract_ID: contractId });
+    
+            const equipmentIds = allocations
+                .map((allocation) => allocation.equipment_ID)
+                .filter(Boolean);
+    
+            const equipment = equipmentIds.length
+                ? await SELECT.from(Rental_Physical_Equipment).where({
+                      ID: { in: equipmentIds }
+                  })
+                : [];
+    
+            const equipmentRows = equipment
+                .map(
+                    (item) => `
+                        <tr>
+                            <td>${esc(item.equipment_Code)}</td>
+                            <td>${esc(item.equipment_Name)}</td>
+                            <td>${esc(item.serial_Number)}</td>
+                            
+                        </tr>
+                    `
+                )
+                .join("");
+    
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Rental Contract</title>
+                </head>
+                <body style="font-family:Arial,sans-serif;padding:30px;color:#222">
+                    <h2>Rental Contract Confirmation</h2>
+    
+                    <p><strong>Contract Number:</strong>
+                        ${esc(contract.contractNumber)}</p>
+    
+                    <p><strong>Customer:</strong>
+                        ${esc(customer.companyName)}</p>
+    
+                    <p><strong>Customer Code:</strong>
+                        ${esc(customer.customerCode)}</p>
+    
+                    <p><strong>Contract Date:</strong>
+                        ${esc(contract.contractDate)}</p>
+    
+                    <p><strong>Rental Period:</strong>
+                        ${esc(contract.startDate)} to ${esc(contract.endDate)}</p>
+    
+                    <p><strong>Total Rental Amount:</strong>
+                        ${esc(contract.totalRentalAmount)}</p>
+    
+                    <h3>Allocated Equipment</h3>
+    
+                    <table border="1" cellpadding="8"
+                        style="border-collapse:collapse;width:100%">
+                        <thead>
+                            <tr>
+                                <th>Equipment Code</th>
+                                <th>Equipment Name</th>
+                                <th>Serial Number</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${
+                                equipmentRows ||
+                                '<tr><td colspan="4">No equipment allocated</td></tr>'
+                            }
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `;
+    
+            const pdfConfig = cds.env.requires?.PDFSHIFT?.credentials;
+    
+            if (!pdfConfig?.url || !pdfConfig?.apiKey) {
+                throw new Error(
+                    "PDFShift configuration is missing. Check your application configuration."
+                );
+            }
+    
+            const pdfResponse = await fetch(
+                `${pdfConfig.url.replace(/\/+$/, "")}/convert/pdf`,
+                {
+                    method: "POST",
+                    headers: {
+                        "X-API-Key": pdfConfig.apiKey,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        source: html,
+                        sandbox: true
+                    })
+                }
+            );
+    
+            if (!pdfResponse.ok) {
+                throw new Error(`PDFShift failed: ${await pdfResponse.text()}`);
+            }
+    
+            const buffer = Buffer.from(await pdfResponse.arrayBuffer());
+    
+            return { contract, customer, buffer };
+        }
+    
+
 
     // --------------------------------------------------
     // HELPER: NORMALIZE EQUIPMENT STATUS
@@ -29,9 +249,9 @@ module.exports = cds.service.impl(async function () {
     }
 
     // --------------------------------------------------
-    // HELPER: GET PRODUCTS REQUESTED BY A PROPOSAL
-    // ProposalItems.product_ID -> Product.ID
-    // Rental_Physical_Equipment.product_ref_ID -> Product.ID
+    // HELPER: GET PRODUCTS REQUESTED BY A PROPOSAL 
+    // ProposalItems.product_ID -> Product.ID 
+    // Rental_Physical_Equipment.product_ref_ID -> Product.ID 
     // --------------------------------------------------
 
     async function getProposalProductIds(proposal_ID) {
@@ -273,6 +493,8 @@ module.exports = cds.service.impl(async function () {
         const contract = await SELECT.one
             .from(RentalContracts)
             .where({ ID: rentalContract_ID });
+        console.log("Contract Details : ", contract);
+        
 
         if (!contract) {
             return req.reject(404, "Rental contract not found.");
@@ -322,25 +544,29 @@ module.exports = cds.service.impl(async function () {
 
         // 6. Validate the foreign key against the proposal products.
 
-        const productIds = await getProposalProductIds(proposal_ID);
+        //-------------------------------Needed------------------------------------------
 
-        if (productIds.length === 0) {
-            return req.reject(
-                400,
-                "The selected proposal has no products."
-            );
-        }
+        // const productIds = await getProposalProductIds(proposal_ID);
 
-        const equipmentProductId = String(
-            equipment.product_ref_ID || ""
-        );
+        // if (productIds.length === 0) {
+        //     return req.reject(
+        //         400,
+        //         "The selected proposal has no products."
+        //     );
+        // }
 
-        if (!productIds.includes(equipmentProductId)) {
-            return req.reject(
-                400,
-                "The selected equipment does not match any product in this proposal."
-            );
-        }
+        // const equipmentProductId = String(
+        //     equipment.product_ref_ID || ""
+        // );
+
+        // if (!productIds.includes(equipmentProductId)) {
+        //     return req.reject(
+        //         400,
+        //         "The selected equipment does not match any product in this proposal."
+        //     );
+        // }
+
+        //---------------------------------------Needed---------------------------------------------
 
         // 7. Validate current equipment status.
         // This accepts "AVAILABLE" and "AVAILABLE " but rejects
@@ -358,6 +584,12 @@ module.exports = cds.service.impl(async function () {
         const customer = await SELECT.one
             .from(Customers)
             .where({ ID: proposal.customer_ID });
+            console.log("Customer : ", customer);
+
+            const custoID = customer.customerEmail;
+            console.log("custo ID : ", custoID);
+            
+            
 
         if (!customer) {
             return req.reject(
@@ -409,6 +641,19 @@ module.exports = cds.service.impl(async function () {
                 equipment_ID
             });
 
+            // const datas = await buildRentalPdf(rentalContract_ID);
+            // console.log("Datas : ", datas);
+
+            const { buffer } = await buildRentalPdf(rentalContract_ID);
+            const resultPDF = buffer.toString("base64");
+            console.log("Result  PDf : ", resultPDF);
+
+            const token = await generateToken();
+            console.log("Token : ", token);
+
+            const results = await notifyCustomerVerification(customer, token, resultPDF, contract)
+            
+            
             return (
                 `Equipment ${equipment.equipment_Code || equipment_ID} ` +
                 "allocated successfully."
